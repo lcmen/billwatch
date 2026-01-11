@@ -20,6 +20,7 @@ erl_crash.dump
 *.ez
 
 # Temporary files, for example, from tests.
+*:Zone.Identifier
 /tmp/
 
 # Ignore package tarball (built via "mix hex.build").

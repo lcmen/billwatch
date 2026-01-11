@@ -10,8 +10,7 @@ defmodule Billwatch.Application do
     children = [
       BillwatchWeb.Telemetry,
       Billwatch.Repo,
-      {Ecto.Migrator,
-       repos: Application.fetch_env!(:billwatch, :ecto_repos), skip: skip_migrations?()},
+      {Ecto.Migrator, repos: Application.fetch_env!(:billwatch, :ecto_repos), skip: skip_migrations?()},
       {DNSCluster, query: Application.get_env(:billwatch, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Billwatch.PubSub},
       # Start a worker by calling: Billwatch.Worker.start_link(arg)
