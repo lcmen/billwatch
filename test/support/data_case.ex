@@ -24,6 +24,7 @@ defmodule Billwatch.DataCase do
       import Ecto.Changeset
       import Ecto.Query
       import Billwatch.DataCase
+      import Billwatch.TokenHelpers
     end
   end
 

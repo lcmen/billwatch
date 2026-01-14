@@ -30,9 +30,20 @@ if config_env() == :prod do
       For example: /etc/billwatch/billwatch.db
       """
 
+  invite_code =
+    System.get_env("INVITE_CODE") ||
+      raise """
+      environment variable INVITE_CODE is missing.
+      This code is required for user registration.
+      Generate a secure random code and set it in your environment.
+      """
+
+  config :billwatch, :invite_code, invite_code
+
   config :billwatch, Billwatch.Repo,
     database: database_path,
-    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5")
+    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5"),
+    pragma_foreign_keys: :on
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you

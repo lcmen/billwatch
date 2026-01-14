@@ -1,0 +1,101 @@
+<%= if @current_scope do %>
+  <%!-- Sudo mode - authenticated user reauthenticating --%>
+  <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <div class="mx-auto max-w-sm space-y-4">
+      <div class="text-center">
+        <.header>
+          <p>Log in</p>
+          <:subtitle>
+            You need to reauthenticate to perform sensitive actions on your account.
+          </:subtitle>
+        </.header>
+      </div>
+
+      <.form :let={f} for={@form} as={:user} id="login_form" action={~p"/signin"}>
+        <.input
+          readonly={true}
+          field={f[:email]}
+          type="email"
+          label="Email"
+          autocomplete="email"
+          required
+          phx-mounted={JS.focus()}
+        />
+        <.input
+          field={f[:password]}
+          type="password"
+          label="Password"
+          autocomplete="current-password"
+          required
+        />
+        <.button
+          variant="primary"
+          class="w-full px-3.5 py-3 mt-4"
+          name={@form[:remember_me].name}
+          value="true"
+        >
+          Log in
+        </.button>
+      </.form>
+    </div>
+  </Layouts.app>
+<% else %>
+  <%!-- Normal login page with modal styling --%>
+  <BillwatchWeb.PageHTML.landing_page_background>
+    <!-- Modal overlay backdrop -->
+    <div class="fixed inset-0 bg-black/40 z-40"></div>
+    
+<!-- Modal Card -->
+    <div class="fixed inset-0 z-50 flex items-center justify-center px-4 py-12">
+      <div class="w-full max-w-[360px] p-8 bg-white rounded-2xl shadow-[0_25px_50px_rgba(0,0,0,0.25)]">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-semibold text-gray-900">Log in</h2>
+          <.button navigate={~p"/"} variant="secondary" size="sm">
+            ✕
+          </.button>
+        </div>
+
+        <.flash_messages flash={@flash} autohide={false} inline={true} />
+
+        <.form :let={f} for={@form} action={~p"/signin"}>
+          <.input
+            field={f[:email]}
+            type="email"
+            label="Email"
+            placeholder="Email"
+            autocomplete="email"
+            required
+          />
+
+          <.input
+            field={f[:password]}
+            type="password"
+            label="Password"
+            placeholder="Password"
+            autocomplete="current-password"
+            required
+          />
+
+          <div class="mb-4">
+            <.input field={f[:remember_me]} type="checkbox" label="Remember me" />
+          </div>
+
+          <.button
+            type="submit"
+            variant="primary"
+            class="w-full px-3.5 py-3"
+          >
+            Log in
+          </.button>
+        </.form>
+
+        <p class="text-center mt-5 text-sm text-gray-600">
+          Don't have an account?
+          <.link navigate={~p"/signup"} class="text-orange-500 hover:underline font-medium ml-1">
+            Sign up
+          </.link>
+        </p>
+      </div>
+    </div>
+  </BillwatchWeb.PageHTML.landing_page_background>
+<% end %>
