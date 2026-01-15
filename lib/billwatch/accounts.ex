@@ -107,22 +107,6 @@ defmodule Billwatch.Accounts do
   ## Settings
 
   @doc """
-  Checks whether the user is in sudo mode.
-
-  The user is in sudo mode when the last authentication was done no further
-  than 20 minutes ago. The limit can be given as second argument in minutes.
-  """
-  def sudo_mode?(user, minutes \\ -20) do
-    case user do
-      %User{authenticated_at: ts} when is_struct(ts, DateTime) ->
-        DateTime.after?(ts, DateTime.utc_now() |> DateTime.add(minutes, :minute))
-
-      _ ->
-        false
-    end
-  end
-
-  @doc """
   Returns an `%Ecto.Changeset{}` for changing the user email.
 
   ## Examples

@@ -12,20 +12,6 @@ defmodule BillwatchWeb.SigninControllerTest do
       conn = get(conn, ~p"/signin")
       assert html_response(conn, 200) =~ "Log in"
     end
-
-    test "renders login page with email filled in (sudo mode)", %{conn: conn, user: user} do
-      html =
-        conn
-        |> log_in_user(user)
-        |> get(~p"/signin")
-        |> html_response(200)
-
-      assert html =~ "You need to reauthenticate"
-      refute html =~ "Sign up"
-      assert html =~ ~s(id="login_form_email")
-      assert html =~ ~s(value="#{user.email}")
-      assert html =~ "readonly"
-    end
   end
 
   describe "POST /signin" do

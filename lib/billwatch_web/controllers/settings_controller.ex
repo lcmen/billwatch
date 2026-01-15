@@ -4,9 +4,6 @@ defmodule BillwatchWeb.SettingsController do
   alias Billwatch.Accounts
   alias BillwatchWeb.UserAuth
 
-  import BillwatchWeb.UserAuth, only: [require_sudo_mode: 2]
-
-  plug :require_sudo_mode
   plug :assign_email_and_password_changesets
 
   def edit(conn, _params) do

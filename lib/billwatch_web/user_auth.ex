@@ -104,31 +104,6 @@ defmodule BillwatchWeb.UserAuth do
   end
 
   @doc """
-  Plug for routes that require sudo mode.
-  """
-  def require_sudo_mode(conn, _opts) do
-    case conn.assigns[:current_scope] do
-      %Scope{user: user} when not is_nil(user) ->
-        if Accounts.sudo_mode?(user, -10) do
-          conn
-        else
-          conn
-          |> put_flash(:error, "You must re-authenticate to access this page.")
-          |> store_return_to()
-          |> redirect(to: ~p"/")
-          |> halt()
-        end
-
-      _ ->
-        conn
-        |> put_flash(:error, "You must log in to access this page.")
-        |> store_return_to()
-        |> redirect(to: ~p"/")
-        |> halt()
-    end
-  end
-
-  @doc """
   Plug for routes that require the user to not be authenticated.
   """
   def redirect_if_user_is_authenticated(conn, _opts) do
@@ -194,8 +169,7 @@ defmodule BillwatchWeb.UserAuth do
 
   # This function is the one responsible for creating session tokens
   # and storing them safely in the session and cookies. It may be called
-  # either when logging in, during sudo mode, or to renew a session which
-  # will soon expire.
+  # either when logging in or to renew a session which will soon expire.
   #
   # When the session is created, rather than extended, the
   # create_session_for_user/2 function will clear the session
