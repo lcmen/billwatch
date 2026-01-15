@@ -107,40 +107,6 @@ defmodule Billwatch.Accounts do
   ## Settings
 
   @doc """
-  Returns an `%Ecto.Changeset{}` for changing the user email.
-
-  ## Examples
-
-      iex> change_user_email(user)
-      %Ecto.Changeset{data: %User{}}
-
-  """
-  def change_user_email(user, attrs \\ %{}) do
-    User.email_changeset(user, attrs)
-  end
-
-  @doc """
-  Updates the user email using the given token.
-
-  If the token matches, the user email is updated and the token is deleted.
-  """
-  def update_user_email(user, token) do
-    context = "change:#{user.email}"
-
-    Repo.transact(fn ->
-      with {:ok, query} <- UserToken.verify_change_email_token_query(token, context),
-           %UserToken{sent_to: email} <- Repo.one(query),
-           {:ok, user} <- Repo.update(User.email_changeset(user, %{email: email})),
-           {_count, _result} <-
-             Repo.delete_all(from(UserToken, where: [user_id: ^user.id, context: ^context])) do
-        {:ok, user}
-      else
-        _ -> {:error, :transaction_aborted}
-      end
-    end)
-  end
-
-  @doc """
   Returns an `%Ecto.Changeset{}` for changing the user password.
 
   ## Examples
@@ -169,7 +135,7 @@ defmodule Billwatch.Accounts do
   """
   def update_user_password(user, attrs) do
     user
-    |> User.password_changeset(attrs)
+    |> User.password_changeset(attrs, validate_current_password: true)
     |> update_user_and_delete_all_tokens()
   end
 

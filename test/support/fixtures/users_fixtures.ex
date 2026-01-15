@@ -35,7 +35,10 @@ defmodule Billwatch.UsersFixtures do
 
   def with_password(user, password) do
     {:ok, {user, _expired_tokens}} =
-      Accounts.update_user_password(user, %{password: password})
+      Accounts.update_user_password(user, %{
+        current_password: valid_user_password(),
+        password: password
+      })
 
     user
   end

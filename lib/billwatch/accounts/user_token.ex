@@ -6,7 +6,6 @@ defmodule Billwatch.Accounts.UserToken do
   @hash_algorithm :sha256
   @rand_size 32
 
-  @change_email_validity_in_days 7
   @session_validity_in_days 14
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -118,33 +117,6 @@ defmodule Billwatch.Accounts.UserToken do
             join: user in assoc(token, :user),
             where: token.sent_to == user.email,
             select: user
-
-        {:ok, query}
-
-      :error ->
-        :error
-    end
-  end
-
-  @doc """
-  Checks if the token is valid and returns its underlying lookup query.
-
-  The query returns the user_token found by the token, if any.
-
-  This is used to validate requests to change the user
-  email.
-  The given token is valid if it matches its hashed counterpart in the
-  database and if it has not expired (after @change_email_validity_in_days).
-  The context must always start with "change:".
-  """
-  def verify_change_email_token_query(token, "change:" <> _ = context) do
-    case Base.url_decode64(token, padding: false) do
-      {:ok, decoded_token} ->
-        hashed_token = :crypto.hash(@hash_algorithm, decoded_token)
-
-        query =
-          from token in by_token_and_context_query(hashed_token, context),
-            where: token.inserted_at > ago(@change_email_validity_in_days, "day")
 
         {:ok, query}
 

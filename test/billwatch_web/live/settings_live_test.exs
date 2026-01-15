@@ -49,6 +49,7 @@ defmodule BillwatchWeb.SettingsLiveTest do
         view
         |> form("#update_password", %{
           user: %{
+            current_password: "P@ssWord123",
             password: "V@lidPassw0rd123",
             password_confirmation: "V@lidPassw0rd123"
           }
@@ -69,6 +70,7 @@ defmodule BillwatchWeb.SettingsLiveTest do
         view
         |> form("#update_password", %{
           user: %{
+            current_password: "P@ssWord123",
             password: "short",
             password_confirmation: "different"
           }
@@ -107,6 +109,7 @@ defmodule BillwatchWeb.SettingsLiveTest do
       view
       |> form("#update_password", %{
         user: %{
+          current_password: "P@ssWord123",
           password: "V@lidPassw0rd123",
           password_confirmation: "V@lidPassw0rd123"
         }
@@ -116,6 +119,71 @@ defmodule BillwatchWeb.SettingsLiveTest do
       # Form should be cleared (no pre-filled values)
       html = render(view)
       assert html =~ "Password updated successfully"
+    end
+
+    test "requires current password on submit", %{conn: conn} do
+      user = user_fixture()
+      conn = log_in_user(conn, user)
+
+      {:ok, view, _html} = live(conn, ~p"/settings")
+
+      result =
+        view
+        |> form("#update_password", %{
+          user: %{
+            # current_password intentionally omitted
+            password: "V@lidPassw0rd123",
+            password_confirmation: "V@lidPassw0rd123"
+          }
+        })
+        |> render_submit()
+
+      assert result =~ "can&#39;t be blank"
+      refute Accounts.get_user_by_email_and_password(user.email, "V@lidPassw0rd123")
+    end
+
+    test "rejects incorrect current password", %{conn: conn} do
+      user = user_fixture()
+      conn = log_in_user(conn, user)
+
+      {:ok, view, _html} = live(conn, ~p"/settings")
+
+      result =
+        view
+        |> form("#update_password", %{
+          user: %{
+            current_password: "WrongPassword123!",
+            password: "V@lidPassw0rd123",
+            password_confirmation: "V@lidPassw0rd123"
+          }
+        })
+        |> render_submit()
+
+      assert result =~ "is not valid"
+      refute Accounts.get_user_by_email_and_password(user.email, "V@lidPassw0rd123")
+      # Old password should still work
+      assert Accounts.get_user_by_email_and_password(user.email, "P@ssWord123")
+    end
+
+    test "validates current password presence during typing", %{conn: conn} do
+      user = user_fixture()
+      conn = log_in_user(conn, user)
+
+      {:ok, view, _html} = live(conn, ~p"/settings")
+
+      result =
+        view
+        |> form("#update_password", %{
+          user: %{
+            # current_password intentionally omitted
+            password: "V@lidPassw0rd123",
+            password_confirmation: "V@lidPassw0rd123"
+          }
+        })
+        |> render_change()
+
+      # Should show "can't be blank" during typing (presence check always runs)
+      assert result =~ "can&#39;t be blank"
     end
   end
 end

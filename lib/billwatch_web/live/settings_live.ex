@@ -42,6 +42,13 @@ defmodule BillwatchWeb.SettingsLive do
 
         <.form id="update_password" for={@password_form} phx-submit="update_password" phx-change="validate_password">
           <.input
+            field={@password_form[:current_password]}
+            type="password"
+            label="Current password"
+            autocomplete="current-password"
+            required
+          />
+          <.input
             field={@password_form[:password]}
             type="password"
             label="New password"

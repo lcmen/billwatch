@@ -7,6 +7,7 @@ defmodule Billwatch.Accounts.User do
   schema "users" do
     field :email, :string
     field :password, :string, virtual: true, redact: true
+    field :current_password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
@@ -28,28 +29,17 @@ defmodule Billwatch.Accounts.User do
   end
 
   @doc """
-  A user changeset for changing the email.
-
-  It requires the email to change otherwise an error is added.
-  """
-  def email_changeset(user, attrs) do
-    user
-    |> cast(attrs, [:email])
-    |> validate_email()
-    |> validate_email_changed()
-  end
-
-  @doc """
   A user changeset for changing the password.
 
   It is important to validate the length of the password, as long passwords may
   be very expensive to hash for certain algorithms.
   """
-  def password_changeset(user, attrs) do
+  def password_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(attrs, [:password])
+    |> cast(attrs, [:password, :current_password])
     |> validate_confirmation(:password, message: "does not match password")
     |> validate_password()
+    |> validate_current_password(opts)
   end
 
   @doc """
@@ -104,14 +94,6 @@ defmodule Billwatch.Accounts.User do
     |> unique_constraint(:email)
   end
 
-  defp validate_email_changed(changeset) do
-    if get_field(changeset, :email) && get_change(changeset, :email) == nil do
-      add_error(changeset, :email, "did not change")
-    else
-      changeset
-    end
-  end
-
   defp validate_password(changeset) do
     changeset
     |> validate_required([:password])
@@ -121,6 +103,17 @@ defmodule Billwatch.Accounts.User do
     |> validate_format(:password, ~r/[A-Z]/, message: "at least one upper case character")
     |> validate_format(:password, ~r/[!?@#$%^&*_0-9]/, message: "at least one digit or punctuation character")
     |> hash_password()
+  end
+
+  defp validate_current_password(changeset, opts) do
+    current_password = get_change(changeset, :current_password)
+    changeset = validate_required(changeset, [:current_password])
+
+    if Keyword.get(opts, :validate_current_password, false) && not valid_password?(changeset.data, current_password) do
+      add_error(changeset, :current_password, "is not valid")
+    else
+      changeset
+    end
   end
 
   defp validate_invite_code(changeset) do
