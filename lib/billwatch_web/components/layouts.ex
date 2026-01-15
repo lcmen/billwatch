@@ -112,7 +112,7 @@ defmodule BillwatchWeb.Layouts do
                 class="hidden absolute top-14 right-4 bg-white rounded-xl shadow-xl border border-gray-200 min-w-[180px] overflow-hidden z-30"
               >
                 <.button
-                  navigate={~p"/users/settings"}
+                  navigate={~p"/settings"}
                   variant="transparent"
                   class="w-full px-4 py-3 text-sm text-left flex items-center gap-2.5 hover:bg-gray-50 justify-start"
                 >

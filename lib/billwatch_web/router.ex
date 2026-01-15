@@ -65,11 +65,9 @@ defmodule BillwatchWeb.Router do
     pipe_through [:browser, :require_authenticated_user]
 
     live "/calendar", CalendarLive, :index
+    live "/settings", SettingsLive, :index
 
     delete "/signout", SigninController, :delete
-
-    get "/users/settings", SettingsController, :edit
-    put "/users/settings", SettingsController, :update
   end
 
   scope "/", BillwatchWeb do
