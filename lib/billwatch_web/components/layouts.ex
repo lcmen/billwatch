@@ -26,10 +26,13 @@ defmodule BillwatchWeb.Layouts do
 
   def logo(assigns) do
     ~H"""
-    <.link navigate={~p"/calendar"} class={[
-      "flex items-center gap-2 font-bold hover:opacity-80 transition-opacity",
-      (@size == :large && "text-3xl") || "text-xl"
-    ]}>
+    <.link
+      navigate={~p"/calendar"}
+      class={[
+        "flex items-center gap-2 font-bold hover:opacity-80 transition-opacity",
+        (@size == :large && "text-3xl") || "text-xl"
+      ]}
+    >
       <div class={[
         "bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold",
         (@size == :large && "w-10 h-10 text-xl") || "w-7 h-7 text-sm"
@@ -73,6 +76,7 @@ defmodule BillwatchWeb.Layouts do
   attr :active_page, :atom, default: :calendar, doc: "the currently active page (:calendar or :settings)"
   attr :year, :integer, default: nil, doc: "current year for year navigation (optional)"
   slot :inner_block, required: true
+  slot :header
 
   def app(assigns) do
     ~H"""
@@ -85,28 +89,10 @@ defmodule BillwatchWeb.Layouts do
             <div class="flex items-center gap-4">
               <.logo />
 
-              <%= if @year do %>
-                <div class="flex items-center gap-1 ml-2">
-                  <.button
-                    variant="transparent"
-                    phx-click="prev_year"
-                    class="px-2.5 py-1.5 text-lg text-gray-600"
-                  >
-                    ‹
-                  </.button>
-                  <span class="text-lg font-semibold w-12 text-center"><%= @year %></span>
-                  <.button
-                    variant="transparent"
-                    phx-click="next_year"
-                    class="px-2.5 py-1.5 text-lg text-gray-600"
-                  >
-                    ›
-                  </.button>
-                </div>
-              <% end %>
+              {render_slot(@header)}
             </div>
-
-            <!-- Right: Add Bill + Settings -->
+            
+    <!-- Right: Add Bill + Settings -->
             <div class="flex items-center gap-2">
               <.button variant="primary" class="px-4 py-2 text-sm font-semibold flex items-center gap-1.5">
                 <span class="">+</span> Add bill
@@ -119,8 +105,8 @@ defmodule BillwatchWeb.Layouts do
               >
                 <.icon name="hero-cog-6-tooth" class="w-5 h-5 text-gray-600" />
               </.button>
-
-              <!-- Settings Dropdown -->
+              
+    <!-- Settings Dropdown -->
               <div
                 id="settings-dropdown"
                 class="hidden absolute top-14 right-4 bg-white rounded-xl shadow-xl border border-gray-200 min-w-[180px] overflow-hidden z-30"
@@ -130,16 +116,14 @@ defmodule BillwatchWeb.Layouts do
                   variant="transparent"
                   class="w-full px-4 py-3 text-sm text-left flex items-center gap-2.5 hover:bg-gray-50 justify-start"
                 >
-                  <.icon name="hero-cog-6-tooth" class="w-4 h-4" />
-                  Settings
+                  <.icon name="hero-cog-6-tooth" class="w-4 h-4" /> Settings
                 </.button>
                 <.button
                   navigate="/"
                   variant="transparent"
                   class="w-full px-4 py-3 text-sm text-left flex items-center gap-2.5 hover:bg-gray-50 justify-start"
                 >
-                  <.icon name="hero-question-mark-circle" class="w-4 h-4" />
-                  Help & Support
+                  <.icon name="hero-question-mark-circle" class="w-4 h-4" /> Help & Support
                 </.button>
                 <div class="h-px bg-gray-200 my-1"></div>
                 <.button
@@ -148,16 +132,15 @@ defmodule BillwatchWeb.Layouts do
                   variant="transparent"
                   class="w-full px-4 py-3 text-sm text-left flex items-center gap-2.5 text-red-600 hover:bg-red-50 justify-start"
                 >
-                  <.icon name="hero-arrow-right-on-rectangle" class="w-4 h-4" />
-                  Log out
+                  <.icon name="hero-arrow-right-on-rectangle" class="w-4 h-4" /> Log out
                 </.button>
               </div>
             </div>
           </div>
         </div>
       </header>
-
-      <!-- Filter Bar (only on calendar page) -->
+      
+    <!-- Filter Bar (only on calendar page) -->
       <%= if @active_page == :calendar do %>
         <div class="px-4 py-2.5 flex items-center justify-between">
           <!-- Categories Dropdown -->
@@ -171,8 +154,8 @@ defmodule BillwatchWeb.Layouts do
               <span>All Categories</span>
               <.icon name="hero-chevron-down" class="w-3 h-3 ml-0.5" />
             </.button>
-
-            <!-- Categories Dropdown Menu (hidden by default) -->
+            
+    <!-- Categories Dropdown Menu (hidden by default) -->
             <div
               id="categories-dropdown"
               class="hidden absolute top-full left-0 mt-1 bg-white rounded-xl shadow-xl border border-gray-200 min-w-[220px] overflow-hidden z-30 p-2"
@@ -185,8 +168,8 @@ defmodule BillwatchWeb.Layouts do
               <div class="text-sm text-gray-600 px-2 py-3">Categories will be listed here</div>
             </div>
           </div>
-
-          <!-- Totals -->
+          
+    <!-- Totals -->
           <div class="flex items-center gap-4 text-sm">
             <span class="text-gray-500">
               Monthly <strong class="text-gray-900">$0</strong>
@@ -198,11 +181,11 @@ defmodule BillwatchWeb.Layouts do
           </div>
         </div>
       <% end %>
-
-      <!-- Flash Messages -->
+      
+    <!-- Flash Messages -->
       <.flash_group flash={@flash} autohide={true} />
-
-      <!-- Main Content -->
+      
+    <!-- Main Content -->
       <main>
         {render_slot(@inner_block)}
       </main>
