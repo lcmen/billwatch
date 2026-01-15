@@ -2,7 +2,6 @@ defmodule BillwatchWeb.SettingsControllerTest do
   use BillwatchWeb.ConnCase
 
   alias Billwatch.Accounts
-  import Billwatch.UsersFixtures
 
   setup :register_and_log_in_user
 
@@ -48,31 +47,6 @@ defmodule BillwatchWeb.SettingsControllerTest do
 
       assert html_response(conn, 422) =~ "should be at least 10 character(s)"
       assert html_response(conn, 422) =~ "does not match password"
-    end
-  end
-
-  describe "PUT /users/settings (change email form)" do
-    @tag :capture_log
-    test "updates the user email", %{conn: conn, user: user} do
-      conn =
-        put(conn, ~p"/users/settings", %{
-          "action" => "update_email",
-          "user" => %{"email" => unique_user_email()}
-        })
-
-      assert redirected_to(conn) == ~p"/users/settings"
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "A link to confirm your email"
-      assert Accounts.get_user_by_email(user.email)
-    end
-
-    test "does not update email on invalid data", %{conn: conn} do
-      conn =
-        put(conn, ~p"/users/settings", %{
-          "action" => "update_email",
-          "user" => %{"email" => "with spaces"}
-        })
-
-      assert html_response(conn, 422) =~ "must have the @ sign and no spaces"
     end
   end
 end

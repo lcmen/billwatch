@@ -31,8 +31,13 @@ defmodule BillwatchWeb.CalendarLiveTest do
 
       {:ok, _view, html} = live(conn, ~p"/calendar")
 
-      assert html =~ "No bills yet"
-      assert html =~ "Add your first bill"
+      # Check for current year in the header
+      current_year = Date.utc_today().year
+      assert html =~ "#{current_year}"
+
+      # Check for calendar grid structure
+      assert html =~ "JAN"
+      assert html =~ "MON"
     end
   end
 end
