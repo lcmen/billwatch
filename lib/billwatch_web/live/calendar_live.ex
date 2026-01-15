@@ -9,34 +9,55 @@ defmodule BillwatchWeb.CalendarLive do
     {:ok,
      socket
      |> assign(:page_title, "Calendar")
+     |> assign(:year, 2026)
      |> assign(:bills, [])}
+  end
+
+  def handle_event("prev_year", _params, socket) do
+    {:noreply, assign(socket, :year, socket.assigns.year - 1)}
+  end
+
+  def handle_event("next_year", _params, socket) do
+    {:noreply, assign(socket, :year, socket.assigns.year + 1)}
   end
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} active_page={:calendar}>
-      <:header_content>
-        <div class="flex items-center gap-2">
-          <.button variant="ghost" phx-click="prev_year" class="p-2 text-gray-600">‹</.button>
-          <span class="text-lg font-semibold min-w-[60px] text-center">2026</span>
-          <.button variant="ghost" phx-click="next_year" class="p-2 text-gray-600">›</.button>
-        </div>
-      </:header_content>
-
-      <div class="p-3 max-w-[1400px] mx-auto">
-        <!-- Empty State -->
-        <div class="bg-white rounded-xl border border-gray-200 p-16 text-center">
-          <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <.icon name="hero-calendar" class="w-8 h-8 text-orange-500" />
+    <Layouts.app flash={@flash} current_scope={@current_scope} active_page={:calendar} year={@year}>
+      <div class="p-2">
+        <div class="border border-gray-200 rounded-xl overflow-hidden bg-gray-200" style="gap: 1px;">
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(70px,1fr))] gap-px bg-gray-200">
+            <%= for day <- 1..365 do %>
+              <div class="bg-white h-16 p-1 flex flex-col">
+                <div class="flex items-baseline gap-1 mb-0.5">
+                  <%= if rem(day, 30) == 1 do %>
+                    <span class="text-[9px] font-bold text-orange-500">
+                      <%= month_name(div(day, 30)) %>
+                    </span>
+                  <% end %>
+                  <span class="text-[9px] font-semibold text-gray-400">
+                    <%= day_of_week(day) %>
+                  </span>
+                  <span class="text-[11px] font-semibold text-gray-900">
+                    <%= rem(day - 1, 30) + 1 %>
+                  </span>
+                </div>
+              </div>
+            <% end %>
           </div>
-          <h2 class="text-xl font-semibold text-gray-900 mb-2">No bills yet</h2>
-          <p class="text-gray-600 mb-6">Get started by adding your first bill</p>
-          <.button variant="primary" phx-click="show_add_modal" class="px-6 py-3">
-            Add your first bill
-          </.button>
         </div>
       </div>
     </Layouts.app>
     """
+  end
+
+  defp month_name(month) do
+    months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+    Enum.at(months, rem(month, 12))
+  end
+
+  defp day_of_week(day) do
+    days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
+    Enum.at(days, rem(day, 7))
   end
 end

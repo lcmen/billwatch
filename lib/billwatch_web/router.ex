@@ -71,7 +71,6 @@ defmodule BillwatchWeb.Router do
 
     get "/users/settings", SettingsController, :edit
     put "/users/settings", SettingsController, :update
-    get "/users/settings/confirm-email/:token", Settings.ConfirmationController, :confirm
   end
 
   scope "/", BillwatchWeb do

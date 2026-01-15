@@ -4,36 +4,10 @@ defmodule BillwatchWeb.SettingsController do
   alias Billwatch.Accounts
   alias BillwatchWeb.UserAuth
 
-  plug :assign_email_and_password_changesets
+  plug :assign_password_changeset
 
   def edit(conn, _params) do
     render(conn, :edit)
-  end
-
-  def update(conn, %{"action" => "update_email"} = params) do
-    %{"user" => user_params} = params
-    user = conn.assigns.current_scope.user
-
-    case Accounts.change_user_email(user, user_params) do
-      %{valid?: true} = changeset ->
-        Accounts.deliver_user_update_email_instructions(
-          Ecto.Changeset.apply_action!(changeset, :insert),
-          user.email,
-          &url(~p"/users/settings/confirm-email/#{&1}")
-        )
-
-        conn
-        |> put_flash(
-          :info,
-          "A link to confirm your email change has been sent to the new address."
-        )
-        |> redirect(to: ~p"/users/settings")
-
-      changeset ->
-        conn
-        |> put_status(:unprocessable_entity)
-        |> render(:edit, email_changeset: %{changeset | action: :insert})
-    end
   end
 
   def update(conn, %{"action" => "update_password"} = params) do
@@ -54,11 +28,8 @@ defmodule BillwatchWeb.SettingsController do
     end
   end
 
-  defp assign_email_and_password_changesets(conn, _opts) do
+  defp assign_password_changeset(conn, _opts) do
     user = conn.assigns.current_scope.user
-
-    conn
-    |> assign(:email_changeset, Accounts.change_user_email(user))
-    |> assign(:password_changeset, Accounts.change_user_password(user))
+    assign(conn, :password_changeset, Accounts.change_user_password(user))
   end
 end

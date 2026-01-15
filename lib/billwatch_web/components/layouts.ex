@@ -26,8 +26,8 @@ defmodule BillwatchWeb.Layouts do
 
   def logo(assigns) do
     ~H"""
-    <div class={[
-      "flex items-center gap-2 font-bold",
+    <.link navigate={~p"/calendar"} class={[
+      "flex items-center gap-2 font-bold hover:opacity-80 transition-opacity",
       (@size == :large && "text-3xl") || "text-xl"
     ]}>
       <div class={[
@@ -37,7 +37,7 @@ defmodule BillwatchWeb.Layouts do
         B
       </div>
       <span class={(@light && "text-white") || "text-gray-900"}>BillWatch</span>
-    </div>
+    </.link>
     """
   end
 
@@ -59,14 +59,11 @@ defmodule BillwatchWeb.Layouts do
   end
 
   @doc """
-  Renders the app layout with hamburger menu navigation.
+  Renders the app layout with header navigation and filter bar.
 
   ## Examples
 
-      <.app flash={@flash} current_scope={@current_scope} active_page={:calendar}>
-        <:header_content>
-          <h1>Calendar</h1>
-        </:header_content>
+      <.app flash={@flash} current_scope={@current_scope} active_page={:calendar} year={2026}>
         <p>Main content here</p>
       </.app>
 
@@ -74,7 +71,7 @@ defmodule BillwatchWeb.Layouts do
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :current_scope, :map, required: true, doc: "the current scope with user info"
   attr :active_page, :atom, default: :calendar, doc: "the currently active page (:calendar or :settings)"
-  slot :header_content, doc: "content to display in the header next to hamburger menu"
+  attr :year, :integer, default: nil, doc: "current year for year navigation (optional)"
   slot :inner_block, required: true
 
   def app(assigns) do
@@ -82,108 +79,130 @@ defmodule BillwatchWeb.Layouts do
     <div class="min-h-screen bg-white">
       <!-- Header -->
       <header class="sticky top-0 z-20 bg-white border-b border-gray-200">
-        <div class="max-w-[1400px] mx-auto px-4 py-3">
+        <div class="px-4 py-3">
           <div class="flex items-center justify-between">
+            <!-- Left: Logo + Year Nav -->
             <div class="flex items-center gap-4">
-              <.button
-                variant="ghost"
-                phx-click={JS.remove_class("hidden", to: "#menu-overlay") |> JS.remove_class("hidden", to: "#menu-panel")}
-                class="p-2"
-              >
-                <.icon name="hero-bars-3" class="w-5 h-5 text-gray-600" />
+              <.logo />
+
+              <%= if @year do %>
+                <div class="flex items-center gap-1 ml-2">
+                  <.button
+                    variant="transparent"
+                    phx-click="prev_year"
+                    class="px-2.5 py-1.5 text-lg text-gray-600"
+                  >
+                    ‹
+                  </.button>
+                  <span class="text-lg font-semibold w-12 text-center"><%= @year %></span>
+                  <.button
+                    variant="transparent"
+                    phx-click="next_year"
+                    class="px-2.5 py-1.5 text-lg text-gray-600"
+                  >
+                    ›
+                  </.button>
+                </div>
+              <% end %>
+            </div>
+
+            <!-- Right: Add Bill + Settings -->
+            <div class="flex items-center gap-2">
+              <.button variant="primary" class="px-4 py-2 text-sm font-semibold flex items-center gap-1.5">
+                <span class="">+</span> Add bill
               </.button>
-              {render_slot(@header_content)}
+
+              <.button
+                variant="outline"
+                class="p-2"
+                phx-click={JS.toggle(to: "#settings-dropdown")}
+              >
+                <.icon name="hero-cog-6-tooth" class="w-5 h-5 text-gray-600" />
+              </.button>
+
+              <!-- Settings Dropdown -->
+              <div
+                id="settings-dropdown"
+                class="hidden absolute top-14 right-4 bg-white rounded-xl shadow-xl border border-gray-200 min-w-[180px] overflow-hidden z-30"
+              >
+                <.button
+                  navigate={~p"/users/settings"}
+                  variant="transparent"
+                  class="w-full px-4 py-3 text-sm text-left flex items-center gap-2.5 hover:bg-gray-50 justify-start"
+                >
+                  <.icon name="hero-cog-6-tooth" class="w-4 h-4" />
+                  Settings
+                </.button>
+                <.button
+                  navigate="/"
+                  variant="transparent"
+                  class="w-full px-4 py-3 text-sm text-left flex items-center gap-2.5 hover:bg-gray-50 justify-start"
+                >
+                  <.icon name="hero-question-mark-circle" class="w-4 h-4" />
+                  Help & Support
+                </.button>
+                <div class="h-px bg-gray-200 my-1"></div>
+                <.button
+                  href={~p"/signout"}
+                  method="delete"
+                  variant="transparent"
+                  class="w-full px-4 py-3 text-sm text-left flex items-center gap-2.5 text-red-600 hover:bg-red-50 justify-start"
+                >
+                  <.icon name="hero-arrow-right-on-rectangle" class="w-4 h-4" />
+                  Log out
+                </.button>
+              </div>
             </div>
           </div>
         </div>
       </header>
-      
-    <!-- Menu Overlay -->
-      <div
-        id="menu-overlay"
-        phx-click={JS.add_class("hidden", to: "#menu-overlay") |> JS.add_class("hidden", to: "#menu-panel")}
-        class="hidden fixed inset-0 bg-black/30 z-25"
-      />
-      
-    <!-- Slide-out Menu Panel -->
-      <div
-        id="menu-panel"
-        class="hidden fixed top-0 left-0 bottom-0 w-[280px] bg-white z-30 shadow-xl flex flex-col h-full"
-      >
-        <!-- Menu Header -->
-        <div class="p-5 border-b border-gray-200">
-          <div class="flex items-center justify-between">
-            <.logo />
+
+      <!-- Filter Bar (only on calendar page) -->
+      <%= if @active_page == :calendar do %>
+        <div class="px-4 py-2.5 flex items-center justify-between">
+          <!-- Categories Dropdown -->
+          <div class="relative">
             <.button
-              variant="secondary"
-              phx-click={JS.add_class("hidden", to: "#menu-overlay") |> JS.add_class("hidden", to: "#menu-panel")}
-              class="p-2"
+              variant="outline"
+              class="px-3 py-2 text-sm flex items-center gap-2"
+              phx-click={JS.toggle(to: "#categories-dropdown")}
             >
-              <.icon name="hero-x-mark" class="w-4 h-4 text-gray-600" />
+              <.icon name="hero-funnel" class="w-4 h-4" />
+              <span>All Categories</span>
+              <.icon name="hero-chevron-down" class="w-3 h-3 ml-0.5" />
             </.button>
+
+            <!-- Categories Dropdown Menu (hidden by default) -->
+            <div
+              id="categories-dropdown"
+              class="hidden absolute top-full left-0 mt-1 bg-white rounded-xl shadow-xl border border-gray-200 min-w-[220px] overflow-hidden z-30 p-2"
+            >
+              <div class="flex justify-between items-center px-2 py-1 mb-1">
+                <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  Categories
+                </span>
+              </div>
+              <div class="text-sm text-gray-600 px-2 py-3">Categories will be listed here</div>
+            </div>
+          </div>
+
+          <!-- Totals -->
+          <div class="flex items-center gap-4 text-sm">
+            <span class="text-gray-500">
+              Monthly <strong class="text-gray-900">$0</strong>
+            </span>
+            <span class="text-gray-300">·</span>
+            <span class="text-gray-500">
+              Yearly <strong class="text-gray-900">$0</strong>
+            </span>
           </div>
         </div>
-        
-    <!-- Navigation (top) -->
-        <div class="p-5">
-          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            Categories
-          </h3>
-          <div class="flex flex-col gap-1.5">
-            Categories will go here
-          </div>
-        </div>
-        
-    <!-- Account (bottom) -->
-        <div class="p-5 border-t border-gray-200 mt-auto">
-          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            Navigation
-          </h3>
-          <div class="flex flex-col gap-1.5">
-            <.button
-              navigate={~p"/calendar"}
-              variant={if @active_page == :calendar, do: "primary", else: "secondary"}
-              active={@active_page == :calendar}
-              class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium w-full justify-start"
-            >
-              <.icon name="hero-calendar" class="w-4.5 h-4.5" /> Calendar
-            </.button>
-            <.button
-              navigate={~p"/settings"}
-              variant={if @active_page == :settings, do: "primary", else: "secondary"}
-              active={@active_page == :settings}
-              class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium w-full justify-start"
-            >
-              <.icon name="hero-cog-6-tooth" class="w-4.5 h-4.5" /> Settings
-            </.button>
-            <.button
-              href={~p"/signout"}
-              method="delete"
-              variant="danger"
-              class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium w-full justify-start"
-            >
-              <.icon name="hero-arrow-right-on-rectangle" class="w-4.5 h-4.5" /> Log out
-            </.button>
-          </div>
-        </div>
-        
-    <!-- Monthly/Yearly Cost (footer) -->
-        <div class="p-4 border-t border-gray-200 bg-gray-50">
-          <div class="flex justify-between text-sm text-gray-600 mb-1">
-            <span>Monthly</span>
-            <strong class="text-gray-900">$0.00</strong>
-          </div>
-          <div class="flex justify-between text-sm text-gray-600">
-            <span>Yearly</span>
-            <strong class="text-gray-900">$0.00</strong>
-          </div>
-        </div>
-      </div>
-      
-    <!-- Flash Messages -->
+      <% end %>
+
+      <!-- Flash Messages -->
       <.flash_group flash={@flash} autohide={true} />
-      
-    <!-- Main Content -->
+
+      <!-- Main Content -->
       <main>
         {render_slot(@inner_block)}
       </main>

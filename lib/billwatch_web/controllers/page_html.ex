@@ -25,29 +25,25 @@ defmodule BillwatchWeb.PageHTML do
         style={"background-image: url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")"}
       >
       </div>
-      
+
     <!-- Toast Notifications (only shown when explicitly passed) -->
       <%= if @flash do %>
         <.flash_messages flash={@flash} autohide={true} />
       <% end %>
-      
+
     <!-- Navigation -->
       <nav class="relative z-10 px-6 py-4 flex justify-between items-center">
         <BillwatchWeb.Layouts.logo light={true} />
         <div class="flex gap-3">
           <.button
             navigate={~p"/signin"}
-            variant="custom"
-            size="sm"
-            class="bg-white/15 backdrop-blur-sm border border-white/30 text-white hover:bg-white/20"
+            variant="ghost"
           >
             Log in
           </.button>
           <.button
             navigate={~p"/signup"}
-            variant="custom"
-            size="sm"
-            class="bg-white text-gray-900 hover:bg-white/90 font-semibold"
+            variant="blank"
           >
             Sign up
           </.button>
@@ -63,9 +59,8 @@ defmodule BillwatchWeb.PageHTML do
         </p>
         <.button
           navigate={~p"/signup"}
-          variant="custom"
+          variant="blank"
           size="lg"
-          class="px-9 py-4 bg-white text-gray-900 hover:bg-white/90 shadow-lg"
         >
           Get started — it's free
         </.button>

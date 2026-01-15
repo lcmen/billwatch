@@ -149,36 +149,45 @@ defmodule BillwatchWeb.CoreComponents do
       case variant do
         "primary" ->
           class_names([
-            "bg-orange-500 text-white",
+            "border border-orange-500 bg-orange-500 text-white",
             {"hover:bg-orange-600", !active && !disabled}
           ])
 
         "secondary" ->
           class_names([
-            "bg-gray-100 text-gray-700",
+            "border-gray-100 bg-gray-100 text-gray-700",
             {"hover:bg-gray-200", !active && !disabled}
           ])
 
         "danger" ->
           class_names([
-            "bg-red-50 text-red-600",
+            "border-red-50 bg-red-50 text-red-600",
             {"hover:bg-red-100", !active && !disabled}
           ])
 
         "outline" ->
           class_names([
-            "border border-gray-300 bg-white text-gray-700",
+            "border-gray-300 bg-white text-gray-700",
             {"hover:bg-gray-50", !active && !disabled}
+          ])
+
+        "transparent" ->
+          class_names([
+            "border-transparent bg-transparent text-gray-700",
+            {"hover:bg-gray-100", !active && !disabled}
           ])
 
         "ghost" ->
           class_names([
-            "bg-transparent text-gray-700",
-            {"hover:bg-gray-100", !active && !disabled}
+            "border-white/30 bg-white/15 text-white backdrop-blur-sm",
+            {"hover:bg-white/20", !active && !disabled}
           ])
 
-        "custom" ->
-          ""
+        "blank" ->
+          class_names([
+            "border-white bg-white text-gray-900",
+            {"hover:bg-gray-50", !active && !disabled}
+          ])
       end
 
     # Cursor classes based on state
@@ -201,7 +210,7 @@ defmodule BillwatchWeb.CoreComponents do
 
     button_classes =
       class_names([
-        "transition-colors font-medium rounded-lg",
+        "border transition-colors font-medium rounded-lg flex justify-center",
         variant_classes,
         cursor_classes,
         disabled_classes,
