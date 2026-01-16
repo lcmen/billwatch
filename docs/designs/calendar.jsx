@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 const CATEGORIES = {
   'Housing': { color: '#ef4444' },
@@ -44,18 +44,15 @@ const generateRenewalDates = (startDate, cycle, year) => {
   let current = new Date(startDate);
   while (current.getFullYear() > year) {
     if (cycle === 'monthly') current.setMonth(current.getMonth() - 1);
-    else if (cycle === 'quarterly') current.setMonth(current.getMonth() - 3);
     else current.setFullYear(current.getFullYear() - 1);
   }
   while (current.getFullYear() < year) {
     if (cycle === 'monthly') current.setMonth(current.getMonth() + 1);
-    else if (cycle === 'quarterly') current.setMonth(current.getMonth() + 3);
     else current.setFullYear(current.getFullYear() + 1);
   }
   while (current.getFullYear() === year) {
     dates.push(new Date(current));
     if (cycle === 'monthly') current.setMonth(current.getMonth() + 1);
-    else if (cycle === 'quarterly') current.setMonth(current.getMonth() + 3);
     else current.setFullYear(current.getFullYear() + 1);
   }
   return dates;
@@ -73,15 +70,28 @@ const initialBills = [
   { id: 9, name: 'Spotify', logo: 'https://logo.clearbit.com/spotify.com', category: 'Subscriptions', price: 10.99, cycle: 'monthly', startDate: '2026-01-15' },
   { id: 10, name: 'iCloud+', logo: 'https://logo.clearbit.com/icloud.com', category: 'Subscriptions', price: 2.99, cycle: 'monthly', startDate: '2026-01-28' },
   { id: 11, name: 'Credit Card', logo: null, category: 'Finance', price: 0, cycle: 'monthly', startDate: '2026-01-25' },
+  { id: 12, name: 'Amazon Prime', logo: 'https://logo.clearbit.com/amazon.com', category: 'Subscriptions', price: 139.00, cycle: 'yearly', startDate: '2026-03-15' },
 ];
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS_SHORT = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const formatDateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-const getMonthlyEquivalent = (price, cycle) => {
-  if (cycle === 'yearly') return price / 12;
-  if (cycle === 'quarterly') return price / 3;
-  return price;
+const getMonthlyEquivalent = (price, cycle) => cycle === 'yearly' ? price / 12 : price;
+
+// Dropdown hook for click outside
+const useDropdown = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef(null);
+  
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+  
+  return { isOpen, setIsOpen, ref };
 };
 
 export default function BillWatch() {
@@ -90,9 +100,11 @@ export default function BillWatch() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
   const [newBill, setNewBill] = useState({ name: '', price: '', cycle: 'monthly', startDate: '', category: 'Other' });
   const [detectedService, setDetectedService] = useState(null);
+  
+  const categoryDropdown = useDropdown();
+  const settingsDropdown = useDropdown();
   
   const today = new Date('2026-01-09');
   const todayKey = formatDateKey(today);
@@ -134,18 +146,22 @@ export default function BillWatch() {
     return map;
   }, [bills, year, selectedCategories]);
 
-  const totalMonthly = bills.reduce((sum, bill) => sum + getMonthlyEquivalent(bill.price, bill.cycle), 0);
+  const { totalMonthly, totalYearly } = useMemo(() => {
+    const monthly = bills.reduce((sum, bill) => sum + getMonthlyEquivalent(bill.price, bill.cycle), 0);
+    return { totalMonthly: monthly, totalYearly: monthly * 12 };
+  }, [bills]);
   
-  const activeCategories = useMemo(() => {
-    const cats = new Set(bills.map(b => b.category));
-    return Object.keys(CATEGORIES).filter(c => cats.has(c));
+  const categoryStats = useMemo(() => {
+    const stats = {};
+    Object.keys(CATEGORIES).forEach(cat => {
+      stats[cat] = bills.filter(b => b.category === cat).length;
+    });
+    return stats;
   }, [bills]);
 
   const toggleCategory = (cat) => {
     setSelectedCategories(prev => 
-      prev.includes(cat) 
-        ? prev.filter(c => c !== cat)
-        : [...prev, cat]
+      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
     );
   };
 
@@ -157,7 +173,12 @@ export default function BillWatch() {
     if (matchedKey) {
       const service = logoDatabase[matchedKey];
       setDetectedService(service);
-      setNewBill(prev => ({ ...prev, name: service.name, price: prev.price || service.defaultPrice, category: service.category }));
+      setNewBill(prev => ({
+        ...prev,
+        name: service.name,
+        category: service.category,
+        price: service.defaultPrice.toString()
+      }));
     } else {
       setDetectedService(null);
     }
@@ -165,7 +186,7 @@ export default function BillWatch() {
 
   const handleAddBill = () => {
     if (!newBill.name || !newBill.startDate) return;
-    setBills([...bills, {
+    const bill = {
       id: Date.now(),
       name: newBill.name,
       logo: detectedService?.logo || null,
@@ -173,355 +194,340 @@ export default function BillWatch() {
       price: parseFloat(newBill.price) || 0,
       cycle: newBill.cycle,
       startDate: newBill.startDate,
-    }]);
-    setShowAddModal(false);
+    };
+    setBills([...bills, bill]);
     setNewBill({ name: '', price: '', cycle: 'monthly', startDate: '', category: 'Other' });
     setDetectedService(null);
+    setShowAddModal(false);
   };
 
-  const renderBillLabel = (billsList) => {
-    if (billsList.length === 0) return null;
-    
-    if (billsList.length === 1) {
-      const bill = billsList[0];
-      return (
-        <div style={{
-          fontSize: 9,
-          fontWeight: 500,
-          color: 'white',
-          backgroundColor: CATEGORIES[bill.category]?.color || '#6b7280',
-          padding: '2px 4px',
-          borderRadius: 3,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}>
-          {bill.name}
-        </div>
-      );
-    }
-    
-    return (
-      <div style={{
-        fontSize: 9,
-        fontWeight: 500,
-        color: 'white',
-        backgroundColor: '#6b7280',
-        padding: '2px 4px',
-        borderRadius: 3,
-        whiteSpace: 'nowrap',
-      }}>
-        {billsList.length} bills
-      </div>
-    );
+  const formatFullDate = (dateKey) => {
+    const date = new Date(dateKey + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  };
+
+  const getCellBg = (d) => {
+    if (d.isToday) return '#fff7ed';
+    if (d.isFirstOfMonth) return '#fef9e7';
+    if (d.isWeekend) return '#fafafa';
+    return 'white';
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#ffffff',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      color: '#1a1a1a'
-    }}>
-      {/* Header */}
+    <div style={{ minHeight: '100vh', backgroundColor: 'white' }}>
+      {/* Navbar */}
       <header style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 20,
+        position: 'sticky', top: 0, zIndex: 20,
         backgroundColor: 'white',
-        borderBottom: '1px solid #e5e5e5'
+        borderBottom: '1px solid #e5e5e5',
+        padding: '12px 16px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between'
       }}>
-        <div style={{ maxWidth: 1400, margin: '0 auto', padding: '12px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <button 
-                onClick={() => setShowMenu(!showMenu)}
-                style={{ 
-                  padding: 8, 
-                  background: showMenu ? '#f5f5f5' : 'none', 
-                  border: 'none', 
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  position: 'relative'
-                }}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2">
-                  <path d="M3 12h18M3 6h18M3 18h18" />
-                </svg>
-                {selectedCategories.length > 0 && (
-                  <span style={{
-                    position: 'absolute',
-                    top: 4,
-                    right: 4,
-                    width: 8,
-                    height: 8,
-                    backgroundColor: '#f97316',
-                    borderRadius: '50%'
-                  }} />
-                )}
-              </button>
-              
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button onClick={() => setYear(y => y - 1)} style={{ padding: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#666', fontSize: 16 }}>‹</button>
-                <span style={{ fontSize: 18, fontWeight: 600, minWidth: 60, textAlign: 'center' }}>{year}</span>
-                <button onClick={() => setYear(y => y + 1)} style={{ padding: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#666', fontSize: 16 }}>›</button>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{ fontSize: 14, color: '#666' }}>
-                <strong style={{ color: '#1a1a1a' }}>${totalMonthly.toFixed(0)}</strong>/mo
-              </div>
-              
-              <button 
-                onClick={() => setShowAddModal(true)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '8px 16px', backgroundColor: '#f97316', color: 'white',
-                  border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer'
-                }}
-              >
-                + Create bill
-              </button>
-            </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {/* Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 8,
+              backgroundColor: '#f97316',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'white', fontWeight: 800, fontSize: 16
+            }}>B</div>
+            <span style={{ fontWeight: 700, fontSize: 18, color: '#1a1a1a' }}>BillWatch</span>
+          </div>
+          
+          {/* Year Navigation */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 8 }}>
+            <button 
+              onClick={() => setYear(year - 1)}
+              style={{ padding: '6px 10px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#666' }}
+            >‹</button>
+            <span style={{ fontSize: 18, fontWeight: 600, width: 50, textAlign: 'center' }}>{year}</span>
+            <button 
+              onClick={() => setYear(year + 1)}
+              style={{ padding: '6px 10px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#666' }}
+            >›</button>
           </div>
         </div>
-      </header>
 
-      {/* Slide-out Menu */}
-      {showMenu && (
-        <>
-          <div 
-            onClick={() => setShowMenu(false)}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Add Bill Button */}
+          <button
+            onClick={() => setShowAddModal(true)}
             style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(0,0,0,0.3)',
-              zIndex: 25
+              padding: '8px 16px',
+              backgroundColor: '#f97316', color: 'white',
+              border: 'none', borderRadius: 8,
+              fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6
             }}
-          />
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            bottom: 0,
-            width: 280,
-            backgroundColor: 'white',
-            zIndex: 30,
-            boxShadow: '4px 0 20px rgba(0,0,0,0.15)',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
-            <div style={{ padding: 20, borderBottom: '1px solid #eee' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>BillWatch</h2>
-                <button 
-                  onClick={() => setShowMenu(false)}
-                  style={{ padding: 8, background: '#f5f5f5', border: 'none', borderRadius: 8, cursor: 'pointer' }}
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
+          >
+            <span style={{ fontSize: 16 }}>+</span> Add bill
+          </button>
+          
+          {/* Settings Dropdown */}
+          <div ref={settingsDropdown.ref} style={{ position: 'relative' }}>
+            <button
+              onClick={() => settingsDropdown.setIsOpen(!settingsDropdown.isOpen)}
+              style={{
+                padding: 8, background: 'none', border: '1px solid #e5e5e5',
+                borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center'
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+            </button>
             
-            <div style={{ padding: 20, flex: 1, overflowY: 'auto' }}>
-              {/* Categories header with X clear button */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <h3 style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, margin: 0 }}>
-                  Categories
-                </h3>
-                {selectedCategories.length > 0 && (
-                  <button
-                    onClick={() => setSelectedCategories([])}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: 20,
-                      height: 20,
-                      padding: 0,
-                      backgroundColor: '#f5f5f5',
-                      border: 'none',
-                      borderRadius: 4,
-                      cursor: 'pointer',
-                      color: '#999',
-                      fontSize: 12
-                    }}
-                    title="Clear filters"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {activeCategories.map(cat => {
-                  const isSelected = selectedCategories.includes(cat);
-                  const count = bills.filter(b => b.category === cat).length;
-                  return (
-                    <button
-                      key={cat}
-                      onClick={() => toggleCategory(cat)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 12,
-                        padding: '10px 12px',
-                        backgroundColor: isSelected ? CATEGORIES[cat].color : '#f8f8f8',
-                        color: isSelected ? 'white' : '#333',
-                        border: 'none',
-                        borderRadius: 8,
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        transition: 'all 0.15s'
-                      }}
-                    >
-                      <span style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: '50%',
-                        backgroundColor: isSelected ? 'white' : CATEGORIES[cat].color,
-                        flexShrink: 0
-                      }} />
-                      <span style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>
-                        {cat}
-                      </span>
-                      <span style={{ fontSize: 12, fontWeight: 500, color: isSelected ? 'rgba(255,255,255,0.8)' : '#999' }}>
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              
-              <div style={{ height: 1, backgroundColor: '#eee', margin: '20px 0' }} />
-              
-              <h3 style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12, margin: '0 0 12px 0' }}>
-                Account
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {settingsDropdown.isOpen && (
+              <div style={{
+                position: 'absolute', top: '100%', right: 0, marginTop: 4,
+                backgroundColor: 'white', borderRadius: 10,
+                boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+                border: '1px solid #e5e5e5',
+                minWidth: 180, overflow: 'hidden', zIndex: 30
+              }}>
                 <button style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px',
-                  backgroundColor: '#f8f8f8', color: '#333', border: 'none', borderRadius: 8,
-                  cursor: 'pointer', textAlign: 'left', fontSize: 14, fontWeight: 500
+                  width: '100%', padding: '12px 16px', border: 'none', background: 'none',
+                  textAlign: 'left', cursor: 'pointer', fontSize: 14, color: '#333',
+                  display: 'flex', alignItems: 'center', gap: 10
                 }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                   </svg>
                   Settings
                 </button>
                 <button style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px',
-                  backgroundColor: '#f8f8f8', color: '#333', border: 'none', borderRadius: 8,
-                  cursor: 'pointer', textAlign: 'left', fontSize: 14, fontWeight: 500
+                  width: '100%', padding: '12px 16px', border: 'none', background: 'none',
+                  textAlign: 'left', cursor: 'pointer', fontSize: 14, color: '#333',
+                  display: 'flex', alignItems: 'center', gap: 10
                 }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
                   </svg>
                   Help & Support
                 </button>
+                <div style={{ height: 1, backgroundColor: '#e5e5e5', margin: '4px 0' }} />
                 <button style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px',
-                  backgroundColor: '#fef2f2', color: '#dc2626', border: 'none', borderRadius: 8,
-                  cursor: 'pointer', textAlign: 'left', fontSize: 14, fontWeight: 500
+                  width: '100%', padding: '12px 16px', border: 'none', background: 'none',
+                  textAlign: 'left', cursor: 'pointer', fontSize: 14, color: '#ef4444',
+                  display: 'flex', alignItems: 'center', gap: 10
                 }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
                   </svg>
                   Log out
                 </button>
               </div>
-            </div>
-            
-            <div style={{ padding: 16, borderTop: '1px solid #eee', backgroundColor: '#fafafa' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#666', marginBottom: 4 }}>
-                <span>Monthly</span>
-                <strong style={{ color: '#333' }}>${totalMonthly.toFixed(2)}</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#666' }}>
-                <span>Yearly</span>
-                <strong style={{ color: '#333' }}>${(totalMonthly * 12).toFixed(2)}</strong>
-              </div>
-            </div>
+            )}
           </div>
-        </>
-      )}
+        </div>
+      </header>
+
+      {/* Filter Bar */}
+      <div style={{
+        padding: '10px 16px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+      }}>
+        {/* Categories Dropdown */}
+        <div ref={categoryDropdown.ref} style={{ position: 'relative' }}>
+          <button
+            onClick={() => categoryDropdown.setIsOpen(!categoryDropdown.isOpen)}
+            style={{
+              padding: '8px 12px',
+              backgroundColor: selectedCategories.length > 0 ? '#fff7ed' : 'white',
+              border: selectedCategories.length > 0 ? '1px solid #fed7aa' : '1px solid #e5e5e5',
+              borderRadius: 8, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 8,
+              fontSize: 14, color: '#333'
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+            </svg>
+            {selectedCategories.length > 0 ? (
+              <>
+                <span>Filtered</span>
+                <span style={{
+                  backgroundColor: '#f97316', color: 'white',
+                  padding: '2px 6px', borderRadius: 10, fontSize: 11, fontWeight: 600
+                }}>{selectedCategories.length}</span>
+              </>
+            ) : (
+              <span>All Categories</span>
+            )}
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: 2 }}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          
+          {categoryDropdown.isOpen && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, marginTop: 4,
+              backgroundColor: 'white', borderRadius: 10,
+              boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+              border: '1px solid #e5e5e5',
+              minWidth: 220, overflow: 'hidden', zIndex: 30, padding: 8
+            }}>
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '4px 8px', marginBottom: 4
+              }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase' }}>Categories</span>
+                {selectedCategories.length > 0 && (
+                  <button
+                    onClick={() => setSelectedCategories([])}
+                    style={{
+                      padding: 4, backgroundColor: '#fee2e2', color: '#ef4444',
+                      border: 'none', borderRadius: 4, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: 20, height: 20
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <line x1="18" y1="6" x2="6" y2="18"/>
+                      <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                )}
+              </div>
+              {Object.entries(CATEGORIES).map(([cat, { color }]) => {
+                const isSelected = selectedCategories.includes(cat);
+                const count = categoryStats[cat] || 0;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => toggleCategory(cat)}
+                    style={{
+                      width: '100%', padding: '10px 12px',
+                      backgroundColor: isSelected ? `${color}15` : 'transparent',
+                      border: 'none', borderRadius: 6,
+                      textAlign: 'left', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      marginBottom: 2
+                    }}
+                  >
+                    <span style={{
+                      width: 12, height: 12, borderRadius: 3,
+                      backgroundColor: isSelected ? color : 'transparent',
+                      border: `2px solid ${color}`
+                    }} />
+                    <span style={{ flex: 1, fontSize: 14, color: '#333' }}>{cat}</span>
+                    <span style={{
+                      fontSize: 12, color: '#888',
+                      backgroundColor: '#f5f5f5', padding: '2px 8px', borderRadius: 10
+                    }}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Totals */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 14 }}>
+          <span style={{ color: '#888' }}>Monthly <strong style={{ color: '#333' }}>${totalMonthly.toFixed(0)}</strong></span>
+          <span style={{ color: '#ccc' }}>·</span>
+          <span style={{ color: '#888' }}>Yearly <strong style={{ color: '#333' }}>${totalYearly.toFixed(0)}</strong></span>
+        </div>
+      </div>
 
       {/* Calendar Grid */}
-      <div style={{ padding: '12px', maxWidth: 1400, margin: '0 auto' }}>
+      <div style={{ padding: 8 }}>
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))',
-          backgroundColor: '#f0f0f0',
-          border: '1px solid #ddd',
-          borderRadius: 8,
+          border: '1px solid #e5e5e5',
+          borderRadius: 10,
           overflow: 'hidden',
+          backgroundColor: '#e5e5e5',
+          gap: 1
         }}>
-          {allDays.map(day => {
-            const dayBills = renewalMap[day.dateKey] || [];
+          {allDays.map((d) => {
+            const dayBills = renewalMap[d.dateKey] || [];
             const hasBills = dayBills.length > 0;
-            
-            let bgColor = 'white';
-            if (day.isToday) {
-              bgColor = '#fff7ed';
-            } else if (day.isFirstOfMonth) {
-              bgColor = '#fef9e7';
-            } else if (day.isWeekend) {
-              bgColor = '#fafafa';
-            }
             
             return (
               <div
-                key={day.dateKey}
-                onClick={() => hasBills && setSelectedDate({ ...day, bills: dayBills })}
+                key={d.dateKey}
+                onClick={() => hasBills && setSelectedDate({ dateKey: d.dateKey, bills: dayBills })}
                 style={{
-                  height: 68,
-                  display: 'flex',
-                  flexDirection: 'column',
+                  height: 64,
                   padding: 4,
-                  backgroundColor: bgColor,
+                  backgroundColor: getCellBg(d),
+                  display: 'flex', flexDirection: 'column',
                   cursor: hasBills ? 'pointer' : 'default',
                   position: 'relative',
-                  borderRight: '1px solid #eee',
-                  borderBottom: '1px solid #eee',
-                  boxSizing: 'border-box',
-                  outline: day.isToday ? '2px solid #f97316' : 'none',
-                  outlineOffset: '-2px',
-                  zIndex: day.isToday ? 1 : 0,
+                  boxShadow: d.isToday ? 'inset 0 0 0 2px #f97316' : 'none'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 2, marginBottom: 2 }}>
-                  {day.isFirstOfMonth && (
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#f97316' }}>
-                      {MONTHS[day.month].toUpperCase()}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, marginBottom: 2 }}>
+                  {d.isFirstOfMonth && (
+                    <span style={{ fontSize: 9, fontWeight: 700, color: '#f97316' }}>
+                      {MONTHS[d.month].toUpperCase()}
                     </span>
                   )}
-                  <span style={{ fontSize: 10, fontWeight: 600, color: day.isWeekend ? '#999' : '#666' }}>
-                    {DAYS_SHORT[day.dayOfWeek]}
-                  </span>
-                  <span style={{ fontSize: 12, fontWeight: day.isToday ? 700 : 600, color: day.isToday ? '#f97316' : day.isWeekend ? '#999' : '#333' }}>
-                    {day.day}
-                  </span>
+                  <span style={{
+                    fontSize: 9, fontWeight: 600,
+                    color: d.isWeekend ? '#bbb' : '#888'
+                  }}>{DAYS_SHORT[d.dayOfWeek].slice(0, 3)}</span>
+                  <span style={{
+                    fontSize: 11, fontWeight: 600,
+                    color: d.isToday ? '#f97316' : d.isWeekend ? '#bbb' : '#333'
+                  }}>{d.day}</span>
                 </div>
                 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, overflow: 'hidden' }}>
-                  {dayBills.length === 1 && renderBillLabel(dayBills)}
-                  {dayBills.length === 2 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden', flex: 1 }}>
+                  {dayBills.length === 1 ? (
+                    <span style={{
+                      fontSize: 9, fontWeight: 500,
+                      color: 'white',
+                      backgroundColor: CATEGORIES[dayBills[0].category]?.color || '#6b7280',
+                      padding: '2px 4px',
+                      borderRadius: 3,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>{dayBills[0].name}</span>
+                  ) : dayBills.length === 2 ? (
                     <>
-                      {renderBillLabel([dayBills[0]])}
-                      {renderBillLabel([dayBills[1]])}
+                      {dayBills.map((bill, i) => (
+                        <span key={i} style={{
+                          fontSize: 9, fontWeight: 500,
+                          color: 'white',
+                          backgroundColor: CATEGORIES[bill.category]?.color || '#6b7280',
+                          padding: '2px 4px',
+                          borderRadius: 3,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}>{bill.name}</span>
+                      ))}
                     </>
-                  )}
-                  {dayBills.length > 2 && (
+                  ) : dayBills.length > 2 ? (
                     <>
-                      {renderBillLabel([dayBills[0]])}
-                      <div style={{
-                        fontSize: 9, fontWeight: 500, color: 'white',
-                        backgroundColor: '#6b7280', padding: '2px 4px', borderRadius: 3,
-                      }}>
-                        +{dayBills.length - 1} more
-                      </div>
+                      <span style={{
+                        fontSize: 9, fontWeight: 500,
+                        color: 'white',
+                        backgroundColor: CATEGORIES[dayBills[0].category]?.color || '#6b7280',
+                        padding: '2px 4px',
+                        borderRadius: 3,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}>{dayBills[0].name}</span>
+                      <span style={{
+                        fontSize: 9, fontWeight: 600,
+                        color: 'white', backgroundColor: '#6b7280',
+                        padding: '2px 4px', borderRadius: 3
+                      }}>+{dayBills.length - 1} more</span>
                     </>
-                  )}
+                  ) : null}
                 </div>
               </div>
             );
@@ -529,7 +535,7 @@ export default function BillWatch() {
         </div>
       </div>
 
-      {/* Date Details Modal */}
+      {/* Day Detail Modal */}
       {selectedDate && (
         <div 
           onClick={() => setSelectedDate(null)}
@@ -543,22 +549,27 @@ export default function BillWatch() {
           <div onClick={e => e.stopPropagation()} style={{
             backgroundColor: 'white',
             borderRadius: 16,
-            padding: 24,
+            padding: 20,
             width: '100%',
-            maxWidth: 420,
+            maxWidth: 400,
+            maxHeight: '80vh',
+            overflow: 'auto',
             boxShadow: '0 25px 50px rgba(0,0,0,0.25)'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 20 }}>
-              <div>
-                <p style={{ fontSize: 13, color: '#888', marginBottom: 4, margin: 0 }}>{selectedDate.date.toLocaleDateString('en-US', { weekday: 'long' })}</p>
-                <h3 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>{selectedDate.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</h3>
-              </div>
-              <button onClick={() => setSelectedDate(null)} style={{ padding: 8, background: '#f5f5f5', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 16 }}>✕</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{formatFullDate(selectedDate.dateKey)}</h3>
+              <button 
+                onClick={() => setSelectedDate(null)}
+                style={{ padding: 8, background: '#f5f5f5', border: 'none', borderRadius: 8, cursor: 'pointer' }}
+              >✕</button>
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {selectedDate.bills.map(bill => (
-                <div key={bill.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, backgroundColor: '#f8f8f8', borderRadius: 12 }}>
+              {selectedDate.bills.map((bill) => (
+                <div key={bill.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: 12, backgroundColor: '#fafafa', borderRadius: 10
+                }}>
                   <div style={{ 
                     width: 44, height: 44, borderRadius: 10, 
                     backgroundColor: CATEGORIES[bill.category]?.color || '#6b7280',
@@ -665,7 +676,6 @@ export default function BillWatch() {
                     style={{ width: '100%', padding: 12, border: '1px solid #ddd', borderRadius: 10, fontSize: 14, boxSizing: 'border-box', backgroundColor: 'white' }}
                   >
                     <option value="monthly">Monthly</option>
-                    <option value="quarterly">Quarterly</option>
                     <option value="yearly">Yearly</option>
                   </select>
                 </div>

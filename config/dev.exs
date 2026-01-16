@@ -2,10 +2,14 @@ import Config
 
 # Configure your database
 config :billwatch, Billwatch.Repo,
-  database: Path.expand("../billwatch_dev.db", __DIR__),
+  database: Path.expand("../priv/repo/db/dev.db", __DIR__),
   pool_size: 5,
   stacktrace: true,
-  show_sensitive_data_on_connection_error: true
+  show_sensitive_data_on_connection_error: true,
+  pragma_foreign_keys: :on
+
+# Invite code for registration (dev uses simple code)
+config :billwatch, :invite_code, "tryme"
 
 # For development, we disable any cache and enable
 # debugging and code reloading.

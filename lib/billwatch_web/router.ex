@@ -1,6 +1,8 @@
 defmodule BillwatchWeb.Router do
   use BillwatchWeb, :router
 
+  import BillwatchWeb.UserAuth
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -8,6 +10,7 @@ defmodule BillwatchWeb.Router do
     plug :put_root_layout, html: {BillwatchWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug :fetch_current_scope_for_user
   end
 
   pipeline :api do
@@ -40,5 +43,36 @@ defmodule BillwatchWeb.Router do
       live_dashboard "/dashboard", metrics: BillwatchWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
+  end
+
+  ## Authentication routes
+
+  scope "/", BillwatchWeb do
+    pipe_through [:browser, :redirect_if_user_is_authenticated]
+
+    get "/signup", SignupController, :new
+    post "/signup", SignupController, :create
+  end
+
+  scope "/", BillwatchWeb do
+    pipe_through [:browser]
+
+    get "/signin", SigninController, :new
+    post "/signin", SigninController, :create
+  end
+
+  scope "/", BillwatchWeb do
+    pipe_through [:browser, :require_authenticated_user]
+
+    live "/calendar", CalendarLive, :index
+    live "/settings", SettingsLive, :index
+
+    delete "/signout", SigninController, :delete
+  end
+
+  scope "/", BillwatchWeb do
+    pipe_through [:browser]
+
+    get "/users/confirm/:token", Signup.ConfirmationController, :confirm
   end
 end

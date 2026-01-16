@@ -1,0 +1,62 @@
+<BillwatchWeb.PageHTML.landing_page_background>
+  <!-- Modal overlay backdrop -->
+  <div class="fixed inset-0 bg-black/40 z-40"></div>
+  
+<!-- Modal Card -->
+  <div class="fixed inset-0 z-50 flex items-center justify-center px-4 py-12">
+    <div class="w-full max-w-[360px] p-8 bg-white rounded-2xl shadow-[0_25px_50px_rgba(0,0,0,0.25)]">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-semibold text-gray-900">Create account</h2>
+        <.button navigate={~p"/"} variant="secondary" size="sm">
+          ✕
+        </.button>
+      </div>
+      
+<!-- Flash Messages -->
+      <.flash_messages flash={@flash} autohide={false} inline={true} />
+
+      <.form :let={f} for={@changeset} action={~p"/signup"}>
+        <.input
+          field={f[:email]}
+          type="email"
+          label="Email"
+          placeholder="Email"
+          autocomplete="email"
+          required
+        />
+
+        <.input
+          field={f[:password]}
+          type="password"
+          label="Password"
+          placeholder="Password (min. 10 characters)"
+          autocomplete="new-password"
+          required
+        />
+
+        <.input
+          field={f[:invite_code]}
+          type="text"
+          label="Invite Code"
+          placeholder="Enter your invite code"
+          required
+        />
+
+        <.button
+          type="submit"
+          variant="primary"
+          class="w-full px-3.5 py-3 mt-2"
+        >
+          Create account
+        </.button>
+      </.form>
+
+      <p class="text-center mt-5 text-sm text-gray-600">
+        Already have an account?
+        <.link navigate={~p"/signin"} class="text-orange-500 hover:underline font-medium ml-1">
+          Log in
+        </.link>
+      </p>
+    </div>
+  </div>
+</BillwatchWeb.PageHTML.landing_page_background>

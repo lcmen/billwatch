@@ -12,142 +12,131 @@ defmodule BillwatchWeb.Layouts do
   embed_templates "layouts/*"
 
   @doc """
-  Renders your app layout.
-
-  This function is typically invoked from every template,
-  and it often contains your application menu, sidebar,
-  or similar.
+  Renders the BillWatch logo with an orange square badge and text.
 
   ## Examples
 
-      <Layouts.app flash={@flash}>
-        <h1>Content</h1>
-      </Layouts.app>
+      <.logo />
+      <.logo light={true} />
+      <.logo size={:large} />
 
   """
-  attr :flash, :map, required: true, doc: "the map of flash messages"
+  attr :light, :boolean, default: false, doc: "use light (white) text for dark backgrounds"
+  attr :path, :string, default: nil, doc: "path to navigate to on click"
 
-  attr :current_scope, :map,
-    default: nil,
-    doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
-
-  slot :inner_block, required: true
-
-  def app(assigns) do
+  def logo(assigns) do
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href="/" class="flex-1 flex w-fit items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-sm font-semibold">v{Application.spec(:phoenix, :vsn)}</span>
-        </a>
+    <.link
+      navigate={@path}
+      class={[
+        "flex items-center gap-2 font-bold transition-opacity text-xl hover:opacity-80",
+        !@path && "pointer-events-none"
+      ]}
+    >
+      <div class="bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold w-7 h-7 text-sm">
+        B
       </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
-          <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
-          </li>
-          <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
-          </li>
-          <li>
-            <.theme_toggle />
-          </li>
-          <li>
-            <a href="https://hexdocs.pm/phoenix/overview.html" class="btn btn-primary">
-              Get Started <span aria-hidden="true">&rarr;</span>
-            </a>
-          </li>
-        </ul>
-      </div>
-    </header>
-
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-2xl space-y-4">
-        {render_slot(@inner_block)}
-      </div>
-    </main>
-
-    <.flash_group flash={@flash} />
+      <span class={(@light && "text-white") || "text-gray-900"}>BillWatch</span>
+    </.link>
     """
   end
 
   @doc """
-  Shows the flash group with standard titles and content.
+  Shows flash messages with auto-hide support.
 
   ## Examples
 
       <.flash_group flash={@flash} />
+      <.flash_group flash={@flash} autohide={true} />
   """
   attr :flash, :map, required: true, doc: "the map of flash messages"
-  attr :id, :string, default: "flash-group", doc: "the optional id of flash container"
+  attr :autohide, :boolean, default: false, doc: "whether to auto-hide flash messages"
 
   def flash_group(assigns) do
     ~H"""
-    <div id={@id} aria-live="polite">
-      <.flash kind={:info} flash={@flash} />
-      <.flash kind={:error} flash={@flash} />
-
-      <.flash
-        id="client-error"
-        kind={:error}
-        title={gettext("We can't find the internet")}
-        phx-disconnected={show(".phx-client-error #client-error") |> JS.remove_attribute("hidden")}
-        phx-connected={hide("#client-error") |> JS.set_attribute({"hidden", ""})}
-        hidden
-      >
-        {gettext("Attempting to reconnect")}
-        <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
-      </.flash>
-
-      <.flash
-        id="server-error"
-        kind={:error}
-        title={gettext("Something went wrong!")}
-        phx-disconnected={show(".phx-server-error #server-error") |> JS.remove_attribute("hidden")}
-        phx-connected={hide("#server-error") |> JS.set_attribute({"hidden", ""})}
-        hidden
-      >
-        {gettext("Attempting to reconnect")}
-        <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
-      </.flash>
-    </div>
+    <.flash_messages flash={@flash} autohide={@autohide} />
     """
   end
 
   @doc """
-  Provides dark vs light theme toggle based on themes defined in app.css.
+  Renders the app layout with header navigation and filter bar.
 
-  See <head> in root.html.heex which applies the theme before page load.
+  ## Examples
+
+      <.app flash={@flash} current_scope={@current_scope} active_page={:calendar} year={2026}>
+        <p>Main content here</p>
+      </.app>
+
   """
-  def theme_toggle(assigns) do
+  attr :flash, :map, required: true, doc: "the map of flash messages"
+  attr :current_scope, :map, required: true, doc: "the current scope with user info"
+  attr :active_page, :atom, default: :calendar, doc: "the currently active page (:calendar or :settings)"
+  attr :year, :integer, default: nil, doc: "current year for year navigation (optional)"
+  slot :inner_block, required: true
+  slot :header
+
+  def app(assigns) do
     ~H"""
-    <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">
-      <div class="absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 transition-[left]" />
+    <div class="min-h-screen bg-white">
+      <!-- Header -->
+      <header class="sticky top-0 z-20 bg-white border-b border-gray-200">
+        <div class="px-4 py-3">
+          <div class="flex items-center justify-between">
+            <!-- Left: Logo + Year Nav -->
+            <div class="flex items-center gap-4">
+              <.logo path={~p"/calendar"} />
 
-      <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="system"
-      >
-        <.icon name="hero-computer-desktop-micro" class="size-4 opacity-75 hover:opacity-100" />
-      </button>
+              {render_slot(@header)}
+            </div>
+            
+    <!-- Right: Add Bill + Settings -->
+            <div class="flex items-center gap-2">
+              <.button variant="primary">
+                <span class="">+</span> Add bill
+              </.button>
 
-      <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="light"
-      >
-        <.icon name="hero-sun-micro" class="size-4 opacity-75 hover:opacity-100" />
-      </button>
-
-      <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="dark"
-      >
-        <.icon name="hero-moon-micro" class="size-4 opacity-75 hover:opacity-100" />
-      </button>
+              <.dropdown id="settings-dropdown">
+                <:trigger>
+                  <.icon name="hero-cog-6-tooth" class="w-5 h-5 my-0.5 text-gray-600" />
+                </:trigger>
+                <:content>
+                  <.button
+                    navigate={~p"/settings"}
+                    variant="transparent"
+                    class="w-full text-left justify-start"
+                  >
+                    <.icon name="hero-cog-6-tooth" class="w-4 h-4" /> Settings
+                  </.button>
+                  <.button
+                    navigate="/"
+                    variant="transparent"
+                    class="w-full text-left justify-start"
+                  >
+                    <.icon name="hero-question-mark-circle" class="w-4 h-4" /> Help & Support
+                  </.button>
+                  <div class="h-px bg-gray-200 my-1"></div>
+                  <.button
+                    href={~p"/signout"}
+                    method="delete"
+                    variant="transparent"
+                    class="w-full text-left justify-start text-red-600 hover:bg-red-50"
+                  >
+                    <.icon name="hero-arrow-right-on-rectangle" class="w-4 h-4" /> Log out
+                  </.button>
+                </:content>
+              </.dropdown>
+            </div>
+          </div>
+        </div>
+      </header>
+      
+    <!-- Flash Messages -->
+      <.flash_group flash={@flash} autohide={true} />
+      
+    <!-- Main Content -->
+      <main>
+        {render_slot(@inner_block)}
+      </main>
     </div>
     """
   end

@@ -8,12 +8,8 @@ defmodule BillwatchWeb.CoreComponents do
   with doc strings and declarative assigns. You may customize and style
   them in any way you want, based on your application growth and needs.
 
-  The foundation for styling is Tailwind CSS, a utility-first CSS framework,
-  augmented with daisyUI, a Tailwind CSS plugin that provides UI components
-  and themes. Here are useful references:
-
-    * [daisyUI](https://daisyui.com/docs/intro/) - a good place to get
-      started and see the available components.
+  The foundation for styling is Tailwind CSS, a utility-first CSS framework.
+  Here are useful references:
 
     * [Tailwind CSS](https://tailwindcss.com) - the foundational framework
       we build on. You will use it for layout, sizing, flexbox, grid, and
@@ -32,88 +28,204 @@ defmodule BillwatchWeb.CoreComponents do
   alias Phoenix.LiveView.JS
 
   @doc """
-  Renders flash notices.
+  Renders flash messages as toast notifications with optional auto-hide functionality.
 
   ## Examples
 
-      <.flash kind={:info} flash={@flash} />
-      <.flash kind={:info} phx-mounted={show("#flash")}>Welcome Back!</.flash>
+      <.flash_messages flash={@flash} autohide={true} />
+      <.flash_messages flash={@flash} autohide={false} inline={true} />
   """
-  attr :id, :string, doc: "the optional id of flash container"
-  attr :flash, :map, default: %{}, doc: "the map of flash messages to display"
-  attr :title, :string, default: nil
-  attr :kind, :atom, values: [:info, :error], doc: "used for styling and flash lookup"
-  attr :rest, :global, doc: "the arbitrary HTML attributes to add to the flash container"
+  attr :flash, :map, required: true
+  attr :autohide, :boolean, default: false
+  attr :inline, :boolean, default: false
 
-  slot :inner_block, doc: "the optional inner block that renders the flash message"
-
-  def flash(assigns) do
-    assigns = assign_new(assigns, :id, fn -> "flash-#{assigns.kind}" end)
-
+  def flash_messages(assigns) do
     ~H"""
-    <div
-      :if={msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
-      id={@id}
-      phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
-      role="alert"
-      class="toast toast-top toast-end z-50"
-      {@rest}
-    >
-      <div class={[
-        "alert w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap",
-        @kind == :info && "alert-info",
-        @kind == :error && "alert-error"
-      ]}>
-        <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" />
-        <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" />
-        <div>
-          <p :if={@title} class="font-semibold">{@title}</p>
-          <p>{msg}</p>
+    <div class={
+      if @inline do
+        nil
+      else
+        "fixed top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-6 pointer-events-none"
+      end
+    }>
+      <%= if @flash["info"] do %>
+        <div
+          id="flash-info"
+          class={[
+            "mb-3 p-4 bg-green-50 rounded-xl transition-all duration-300 ease-out",
+            !@inline && "shadow-2xl animate-[slideDown_0.3s_ease-out] pointer-events-auto"
+          ]}
+          phx-mounted={
+            if @autohide do
+              JS.dispatch("phx:auto-hide", detail: %{id: "flash-info", delay: 3000})
+            end
+          }
+        >
+          <div class="flex items-start">
+            <.icon name="hero-check-circle" class="w-5 h-5 text-green-600 mr-3 mt-0.5 flex-shrink-0" />
+            <p class="text-sm text-green-900 font-medium">{@flash["info"]}</p>
+          </div>
         </div>
-        <div class="flex-1" />
-        <button type="button" class="group self-start cursor-pointer" aria-label={gettext("close")}>
-          <.icon name="hero-x-mark" class="size-5 opacity-40 group-hover:opacity-70" />
-        </button>
-      </div>
+      <% end %>
+      <%= if @flash["error"] do %>
+        <div
+          id="flash-error"
+          class={[
+            "mb-3 p-4 bg-red-50 rounded-xl transition-all duration-300 ease-out",
+            !@inline && "shadow-2xl animate-[slideDown_0.3s_ease-out] pointer-events-auto"
+          ]}
+          phx-mounted={
+            if @autohide do
+              JS.dispatch("phx:auto-hide", detail: %{id: "flash-error", delay: 3000})
+            end
+          }
+        >
+          <div class="flex items-start">
+            <.icon name="hero-exclamation-circle" class="w-5 h-5 text-red-600 mr-3 mt-0.5 flex-shrink-0" />
+            <p class="text-sm text-red-900 font-medium">{@flash["error"]}</p>
+          </div>
+        </div>
+      <% end %>
     </div>
     """
   end
 
   @doc """
-  Renders a button with navigation support.
+  Renders a button with navigation support and multiple variants.
 
   ## Examples
 
       <.button>Send!</.button>
       <.button phx-click="go" variant="primary">Send!</.button>
       <.button navigate={~p"/"}>Home</.button>
+      <.button navigate={~p"/calendar"} variant="secondary" active={true}>Calendar</.button>
   """
-  attr :rest, :global, include: ~w(href navigate patch method download name value disabled)
-  attr :class, :any
-  attr :variant, :string, values: ~w(primary)
+  attr :rest, :global, include: ~w(href navigate patch method download name value disabled type phx-click phx-value-id)
+
+  attr :class, :any, default: nil
+  attr :variant, :string, default: nil
+  attr :size, :string, default: nil
+  attr :active, :boolean, default: false, doc: "whether this button represents the current page"
   slot :inner_block, required: true
 
   def button(%{rest: rest} = assigns) do
-    variants = %{"primary" => "btn-primary", nil => "btn-primary btn-soft"}
+    active = assigns.active || false
+    disabled = rest[:disabled] || false
+
+    aria_attrs =
+      %{
+        "aria-current": active && "page",
+        "aria-disabled": (active || disabled) && "true"
+      }
+      |> Enum.reject(fn {_, v} -> !v end)
+      |> Map.new()
+
+    button_classes = [
+      "btn",
+      active && "btn-active",
+      disabled && "btn-disabled",
+      case assigns.variant do
+        "primary" -> "btn-primary"
+        "secondary" -> "btn-secondary"
+        "danger" -> "btn-danger"
+        "outline" -> "btn-outline"
+        "transparent" -> "btn-transparent"
+        "ghost" -> "btn-ghost"
+        "blank" -> "btn-blank"
+        _ -> "btn-primary"
+      end,
+      case assigns.size do
+        "sm" -> "btn-sm"
+        "lg" -> "btn-lg"
+        _ -> nil
+      end,
+      assigns.class
+    ]
 
     assigns =
-      assign_new(assigns, :class, fn ->
-        ["btn", Map.fetch!(variants, assigns[:variant])]
-      end)
+      assigns
+      |> assign(:aria_attrs, aria_attrs)
+      |> assign(:button_classes, button_classes)
 
     if rest[:href] || rest[:navigate] || rest[:patch] do
       ~H"""
-      <.link class={@class} {@rest}>
+      <.link class={@button_classes} {@rest} {@aria_attrs}>
         {render_slot(@inner_block)}
       </.link>
       """
     else
       ~H"""
-      <button class={@class} {@rest}>
+      <button class={@button_classes} {@rest} {@aria_attrs}>
         {render_slot(@inner_block)}
       </button>
       """
     end
+  end
+
+  @doc """
+  Renders a dropdown menu with a trigger and content.
+
+  ## Examples
+
+      <.dropdown id="my-dropdown">
+        <:trigger>
+          <.button variant="outline">
+            <.icon name="hero-cog-6-tooth" class="w-5 h-5" />
+          </.button>
+        </:trigger>
+        <:content>
+          <.button variant="transparent">Settings</.button>
+          <.button variant="transparent">Help</.button>
+        </:content>
+      </.dropdown>
+
+      <.dropdown id="categories" position="left">
+        <:trigger>
+          <.button variant="outline">Categories</.button>
+        </:trigger>
+        <:content class="p-2">
+          <div>Custom content here</div>
+        </:content>
+      </.dropdown>
+  """
+  attr :id, :string, required: true, doc: "unique identifier for the dropdown"
+  attr :position, :string, default: "right", values: ~w(left right), doc: "dropdown alignment (left or right)"
+  attr :class, :string, default: nil, doc: "additional classes for the dropdown container"
+  slot :trigger, required: true, doc: "the clickable element that toggles the dropdown"
+
+  slot :content, required: true, doc: "the dropdown menu content" do
+    attr :class, :string, doc: "additional classes for the dropdown content"
+  end
+
+  def dropdown(assigns) do
+    # Use case for literal class names (tree-shaking)
+    position_class =
+      case assigns.position do
+        "left" -> "dropdown-left"
+        "right" -> "dropdown-right"
+        _ -> "dropdown-right"
+      end
+
+    assigns = assign(assigns, :position_class, position_class)
+
+    ~H"""
+    <div class={["dropdown", @class]}>
+      <div phx-click={JS.toggle(to: "##{@id}")}>
+        <.button variant="outline">
+          {render_slot(@trigger)}
+          <.icon name="hero-chevron-down" class="w-3 h-3 ml-0.5" />
+        </.button>
+      </div>
+
+      <div
+        id={@id}
+        class={["dropdown-content", @position_class, get_in(@content, [Access.at(0), :class])]}
+        phx-click-away={JS.hide(to: "##{@id}")}
+      >
+        {render_slot(@content)}
+      </div>
+    </div>
+    """
   end
 
   @doc """
@@ -203,8 +315,8 @@ defmodule BillwatchWeb.CoreComponents do
       end)
 
     ~H"""
-    <div class="fieldset mb-2">
-      <label>
+    <div class="mb-2">
+      <label class="flex items-center">
         <input
           type="hidden"
           name={@name}
@@ -212,17 +324,16 @@ defmodule BillwatchWeb.CoreComponents do
           disabled={@rest[:disabled]}
           form={@rest[:form]}
         />
-        <span class="label">
-          <input
-            type="checkbox"
-            id={@id}
-            name={@name}
-            value="true"
-            checked={@checked}
-            class={@class || "checkbox checkbox-sm"}
-            {@rest}
-          />{@label}
-        </span>
+        <input
+          type="checkbox"
+          id={@id}
+          name={@name}
+          value="true"
+          checked={@checked}
+          class={@class || "h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500 focus:ring-2"}
+          {@rest}
+        />
+        <span class="ml-2 text-sm text-gray-700">{@label}</span>
       </label>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
@@ -231,13 +342,17 @@ defmodule BillwatchWeb.CoreComponents do
 
   def input(%{type: "select"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
-      <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+    <div class="mb-4">
+      <label class="block">
+        <span :if={@label} class="block text-sm font-medium text-gray-700 mb-1">{@label}</span>
         <select
           id={@id}
           name={@name}
-          class={[@class || "w-full select", @errors != [] && (@error_class || "select-error")]}
+          class={[
+            @class || "w-full px-3.5 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors",
+            @errors == [] && "border-gray-300 focus:ring-orange-500 focus:border-orange-500",
+            @errors != [] && (@error_class || "border-red-500 focus:ring-red-500 focus:border-red-500")
+          ]}
           multiple={@multiple}
           {@rest}
         >
@@ -252,15 +367,16 @@ defmodule BillwatchWeb.CoreComponents do
 
   def input(%{type: "textarea"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
-      <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+    <div class="mb-4">
+      <label class="block">
+        <span :if={@label} class="block text-sm font-medium text-gray-700 mb-1">{@label}</span>
         <textarea
           id={@id}
           name={@name}
           class={[
-            @class || "w-full textarea",
-            @errors != [] && (@error_class || "textarea-error")
+            @class || "w-full px-3.5 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors",
+            @errors == [] && "border-gray-300 focus:ring-orange-500 focus:border-orange-500",
+            @errors != [] && (@error_class || "border-red-500 focus:ring-red-500 focus:border-red-500")
           ]}
           {@rest}
         >{Phoenix.HTML.Form.normalize_value("textarea", @value)}</textarea>
@@ -273,17 +389,18 @@ defmodule BillwatchWeb.CoreComponents do
   # All other inputs text, datetime-local, url, password, etc. are handled here...
   def input(assigns) do
     ~H"""
-    <div class="fieldset mb-2">
-      <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+    <div class="mb-4">
+      <label class="block">
+        <span :if={@label} class="block text-sm font-medium text-gray-700 mb-1">{@label}</span>
         <input
           type={@type}
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
           class={[
-            @class || "w-full input",
-            @errors != [] && (@error_class || "input-error")
+            @class || "w-full px-3.5 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors",
+            @errors == [] && "border-gray-300 focus:ring-orange-500 focus:border-orange-500",
+            @errors != [] && (@error_class || "border-red-500 focus:ring-red-500 focus:border-red-500")
           ]}
           {@rest}
         />
@@ -296,8 +413,8 @@ defmodule BillwatchWeb.CoreComponents do
   # Helper used by inputs to generate form errors
   defp error(assigns) do
     ~H"""
-    <p class="mt-1.5 flex gap-2 items-center text-sm text-error">
-      <.icon name="hero-exclamation-circle" class="size-5" />
+    <p class="mt-1 flex gap-1.5 items-center text-sm text-red-600">
+      <.icon name="hero-exclamation-circle" class="size-4" />
       {render_slot(@inner_block)}
     </p>
     """
@@ -323,96 +440,6 @@ defmodule BillwatchWeb.CoreComponents do
       </div>
       <div class="flex-none">{render_slot(@actions)}</div>
     </header>
-    """
-  end
-
-  @doc """
-  Renders a table with generic styling.
-
-  ## Examples
-
-      <.table id="users" rows={@users}>
-        <:col :let={user} label="id">{user.id}</:col>
-        <:col :let={user} label="username">{user.username}</:col>
-      </.table>
-  """
-  attr :id, :string, required: true
-  attr :rows, :list, required: true
-  attr :row_id, :any, default: nil, doc: "the function for generating the row id"
-  attr :row_click, :any, default: nil, doc: "the function for handling phx-click on each row"
-
-  attr :row_item, :any,
-    default: &Function.identity/1,
-    doc: "the function for mapping each row before calling the :col and :action slots"
-
-  slot :col, required: true do
-    attr :label, :string
-  end
-
-  slot :action, doc: "the slot for showing user actions in the last table column"
-
-  def table(assigns) do
-    assigns =
-      with %{rows: %Phoenix.LiveView.LiveStream{}} <- assigns do
-        assign(assigns, row_id: assigns.row_id || fn {id, _item} -> id end)
-      end
-
-    ~H"""
-    <table class="table table-zebra">
-      <thead>
-        <tr>
-          <th :for={col <- @col}>{col[:label]}</th>
-          <th :if={@action != []}>
-            <span class="sr-only">{gettext("Actions")}</span>
-          </th>
-        </tr>
-      </thead>
-      <tbody id={@id} phx-update={is_struct(@rows, Phoenix.LiveView.LiveStream) && "stream"}>
-        <tr :for={row <- @rows} id={@row_id && @row_id.(row)}>
-          <td
-            :for={col <- @col}
-            phx-click={@row_click && @row_click.(row)}
-            class={@row_click && "hover:cursor-pointer"}
-          >
-            {render_slot(col, @row_item.(row))}
-          </td>
-          <td :if={@action != []} class="w-0 font-semibold">
-            <div class="flex gap-4">
-              <%= for action <- @action do %>
-                {render_slot(action, @row_item.(row))}
-              <% end %>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    """
-  end
-
-  @doc """
-  Renders a data list.
-
-  ## Examples
-
-      <.list>
-        <:item title="Title">{@post.title}</:item>
-        <:item title="Views">{@post.views}</:item>
-      </.list>
-  """
-  slot :item, required: true do
-    attr :title, :string, required: true
-  end
-
-  def list(assigns) do
-    ~H"""
-    <ul class="list">
-      <li :for={item <- @item} class="list-row">
-        <div class="list-col-grow">
-          <div class="font-bold">{item.title}</div>
-          <div>{render_slot(item)}</div>
-        </div>
-      </li>
-    </ul>
     """
   end
 
@@ -443,28 +470,6 @@ defmodule BillwatchWeb.CoreComponents do
     """
   end
 
-  ## JS Commands
-
-  def show(js \\ %JS{}, selector) do
-    JS.show(js,
-      to: selector,
-      time: 300,
-      transition:
-        {"transition-all ease-out duration-300", "opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95",
-         "opacity-100 translate-y-0 sm:scale-100"}
-    )
-  end
-
-  def hide(js \\ %JS{}, selector) do
-    JS.hide(js,
-      to: selector,
-      time: 200,
-      transition:
-        {"transition-all ease-in duration-200", "opacity-100 translate-y-0 sm:scale-100",
-         "opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"}
-    )
-  end
-
   @doc """
   Translates an error message using gettext.
   """
@@ -484,12 +489,5 @@ defmodule BillwatchWeb.CoreComponents do
     else
       Gettext.dgettext(BillwatchWeb.Gettext, "errors", msg, opts)
     end
-  end
-
-  @doc """
-  Translates the errors for a field from a keyword list of errors.
-  """
-  def translate_errors(errors, field) when is_list(errors) do
-    for {^field, {msg, opts}} <- errors, do: translate_error({msg, opts})
   end
 end
