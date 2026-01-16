@@ -27,37 +27,6 @@ defmodule BillwatchWeb.CoreComponents do
 
   alias Phoenix.LiveView.JS
 
-  # Conditionally builds CSS class strings based on boolean flags.
-  #
-  # Similar to the `classnames` library in JavaScript or Rails' `class_names` helper.
-  # Takes a list of tuples where each tuple is `{class_string, boolean}`.
-  # Only includes classes where the boolean is truthy.
-  #
-  # Examples:
-  #
-  #     class_names([
-  #       {"base-class", true},
-  #       {"active", @active},
-  #       {"disabled", @disabled},
-  #       {@custom_classes, @custom_classes != nil}
-  #     ])
-  #     #=> "base-class active"  (if @active is true and @disabled is false)
-  #
-  defp class_names(class_list) do
-    class_list
-    |> Enum.filter(fn
-      {_class, condition} -> condition
-      str when is_binary(str) -> true
-      _ -> false
-    end)
-    |> Enum.map(fn
-      {class, _condition} -> class
-      str when is_binary(str) -> str
-    end)
-    |> Enum.join(" ")
-    |> String.trim()
-  end
-
   @doc """
   Renders flash messages as toast notifications with optional auto-hide functionality.
 
@@ -133,7 +102,7 @@ defmodule BillwatchWeb.CoreComponents do
   """
   attr :rest, :global, include: ~w(href navigate patch method download name value disabled type phx-click phx-value-id)
 
-  attr :class, :any
+  attr :class, :any, default: nil
   attr :variant, :string, default: nil
   attr :size, :string, default: nil
   attr :active, :boolean, default: false, doc: "whether this button represents the current page"
@@ -142,83 +111,7 @@ defmodule BillwatchWeb.CoreComponents do
   def button(%{rest: rest} = assigns) do
     active = assigns.active || false
     disabled = rest[:disabled] || false
-    variant = assigns.variant || "primary"
 
-    # Base variant colors (always apply unless active overrides)
-    variant_classes =
-      case variant do
-        "primary" ->
-          class_names([
-            "border border-orange-500 bg-orange-500 text-white",
-            {"hover:bg-orange-600", !active && !disabled}
-          ])
-
-        "secondary" ->
-          class_names([
-            "border-gray-100 bg-gray-100 text-gray-700",
-            {"hover:bg-gray-200", !active && !disabled}
-          ])
-
-        "danger" ->
-          class_names([
-            "border-red-50 bg-red-50 text-red-600",
-            {"hover:bg-red-100", !active && !disabled}
-          ])
-
-        "outline" ->
-          class_names([
-            "border-gray-300 bg-white text-gray-700",
-            {"hover:bg-gray-50", !active && !disabled}
-          ])
-
-        "transparent" ->
-          class_names([
-            "border-transparent bg-transparent text-gray-700",
-            {"hover:bg-gray-100", !active && !disabled}
-          ])
-
-        "ghost" ->
-          class_names([
-            "border-white/30 bg-white/15 text-white backdrop-blur-sm",
-            {"hover:bg-white/20", !active && !disabled}
-          ])
-
-        "blank" ->
-          class_names([
-            "border-white bg-white text-gray-900",
-            {"hover:bg-gray-50", !active && !disabled}
-          ])
-      end
-
-    # Cursor classes based on state
-    cursor_classes =
-      class_names([
-        {"cursor-pointer", !active && !disabled},
-        {"cursor-default pointer-events-none", active},
-        {"cursor-not-allowed pointer-events-none", disabled && !active}
-      ])
-
-    disabled_classes = class_names([{"opacity-50", disabled}])
-
-    # Size classes
-    size_classes =
-      case assigns.size do
-        "sm" -> "px-2 py-1 text-sm"
-        "lg" -> "px-4 py-3 text-lg"
-        _ -> "px-3 py-2 text-base"
-      end
-
-    button_classes =
-      class_names([
-        "border transition-colors font-medium rounded-lg flex justify-center",
-        variant_classes,
-        cursor_classes,
-        disabled_classes,
-        size_classes,
-        Map.get(assigns, :class, "")
-      ])
-
-    # Build aria attributes
     aria_attrs =
       %{
         "aria-current": active && "page",
@@ -227,8 +120,32 @@ defmodule BillwatchWeb.CoreComponents do
       |> Enum.reject(fn {_, v} -> !v end)
       |> Map.new()
 
-    assigns = assign(assigns, :button_classes, button_classes)
-    assigns = assign(assigns, :aria_attrs, aria_attrs)
+    button_classes = [
+      "btn",
+      active && "btn-active",
+      disabled && "btn-disabled",
+      case assigns.variant do
+        "primary" -> "btn-primary"
+        "secondary" -> "btn-secondary"
+        "danger" -> "btn-danger"
+        "outline" -> "btn-outline"
+        "transparent" -> "btn-transparent"
+        "ghost" -> "btn-ghost"
+        "blank" -> "btn-blank"
+        _ -> "btn-primary"
+      end,
+      case assigns.size do
+        "sm" -> "btn-sm"
+        "lg" -> "btn-lg"
+        _ -> nil
+      end,
+      assigns.class
+    ]
+
+    assigns =
+      assigns
+      |> assign(:aria_attrs, aria_attrs)
+      |> assign(:button_classes, button_classes)
 
     if rest[:href] || rest[:navigate] || rest[:patch] do
       ~H"""
@@ -243,6 +160,72 @@ defmodule BillwatchWeb.CoreComponents do
       </button>
       """
     end
+  end
+
+  @doc """
+  Renders a dropdown menu with a trigger and content.
+
+  ## Examples
+
+      <.dropdown id="my-dropdown">
+        <:trigger>
+          <.button variant="outline">
+            <.icon name="hero-cog-6-tooth" class="w-5 h-5" />
+          </.button>
+        </:trigger>
+        <:content>
+          <.button variant="transparent">Settings</.button>
+          <.button variant="transparent">Help</.button>
+        </:content>
+      </.dropdown>
+
+      <.dropdown id="categories" position="left">
+        <:trigger>
+          <.button variant="outline">Categories</.button>
+        </:trigger>
+        <:content class="p-2">
+          <div>Custom content here</div>
+        </:content>
+      </.dropdown>
+  """
+  attr :id, :string, required: true, doc: "unique identifier for the dropdown"
+  attr :position, :string, default: "right", values: ~w(left right), doc: "dropdown alignment (left or right)"
+  attr :class, :string, default: nil, doc: "additional classes for the dropdown container"
+  slot :trigger, required: true, doc: "the clickable element that toggles the dropdown"
+
+  slot :content, required: true, doc: "the dropdown menu content" do
+    attr :class, :string, doc: "additional classes for the dropdown content"
+  end
+
+  def dropdown(assigns) do
+    # Use case for literal class names (tree-shaking)
+    position_class =
+      case assigns.position do
+        "left" -> "dropdown-left"
+        "right" -> "dropdown-right"
+        _ -> "dropdown-right"
+      end
+
+    assigns = assign(assigns, :position_class, position_class)
+
+    ~H"""
+    <div class={["dropdown", @class]}>
+      <div phx-click={JS.toggle(to: "##{@id}")}>
+        <.button variant="outline">
+          {render_slot(@trigger)}
+          <.icon name="hero-chevron-down" class="w-3 h-3 ml-0.5" />
+        </.button>
+      </div>
+
+      <div
+        id={@id}
+        class={["dropdown-content", @position_class, get_in(@content, [Access.at(0), :class])]}
+        phx-click-away={JS.hide(to: "##{@id}")}
+      >
+        {render_slot(@content)}
+      </div>
+    </div>
+    """
   end
 
   @doc """

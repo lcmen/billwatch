@@ -22,3 +22,135 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+@utility btn {
+  :where(&) {
+    @apply cursor-pointer border transition-colors font-medium rounded-lg;
+    @apply flex items-center justify-center gap-2 px-3 py-1.75 text-sm leading-6;
+  }
+
+  @variant focus-visible {
+    @apply ring-2 ring-orange-500 outline-none;
+  }
+}
+
+@utility btn-primary {
+  :where(&) {
+    @apply border-orange-500 bg-orange-500 text-white;
+  }
+
+  @variant hover {
+    @apply bg-orange-600;
+  }
+}
+
+@utility btn-secondary {
+  :where(&) {
+    @apply border-gray-100 bg-gray-100 text-gray-700;
+  }
+
+  @variant hover {
+    @apply bg-gray-200;
+  }
+}
+
+@utility btn-danger {
+  :where(&) {
+    @apply border-red-50 bg-red-50 text-red-600;
+  }
+
+  @variant hover {
+    @apply bg-red-100;
+  }
+}
+
+@utility btn-outline {
+  :where(&) {
+    @apply border-gray-300 bg-white text-gray-700;
+  }
+
+  @variant hover {
+    @apply bg-gray-50;
+  }
+}
+
+@utility btn-transparent {
+  :where(&) {
+    @apply border-transparent bg-transparent text-gray-700;
+  }
+
+  @variant hover {
+    @apply bg-gray-100;
+  }
+}
+
+@utility btn-ghost {
+  :where(&) {
+    @apply border-white/30 bg-white/15 text-white backdrop-blur-sm;
+  }
+
+  @variant hover {
+    @apply bg-white/20;
+  }
+}
+
+@utility btn-blank {
+  :where(&) {
+    @apply border-white bg-white text-gray-900;
+  }
+
+  @variant hover {
+    @apply bg-gray-50;
+  }
+}
+
+@utility btn-active {
+  :where(&) {
+    @apply cursor-default pointer-events-none;
+  }
+}
+
+@utility btn-disabled {
+  :where(&) {
+    @apply opacity-50 cursor-not-allowed pointer-events-none;
+  }
+}
+
+@utility btn-sm {
+  :where(&) {
+    @apply px-2 py-1.5 text-xs;
+  }
+}
+
+@utility btn-lg {
+  :where(&) {
+    @apply px-4 py-3 text-lg;
+  }
+}
+
+/* Dropdown semantic utilities */
+@utility dropdown {
+  :where(&) {
+    @apply relative;
+  }
+}
+
+@utility dropdown-content {
+  :where(&) {
+    @apply hidden absolute top-full mt-1;
+    @apply bg-white rounded-xl shadow-xl border border-gray-200;
+    @apply min-w-[180px] overflow-hidden z-30;
+  }
+}
+
+@utility dropdown-left {
+  :where(&) {
+    @apply left-0;
+  }
+}
+
+@utility dropdown-right {
+  :where(&) {
+    @apply right-0;
+  }
+}

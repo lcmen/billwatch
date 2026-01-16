@@ -48,6 +48,34 @@ defmodule BillwatchWeb.CalendarLive do
         </div>
       </:header>
 
+      <div class="px-4 py-2.5 flex items-center justify-between">
+        <!-- Categories Dropdown -->
+        <.dropdown id="categories-dropdown" position="left">
+          <:trigger>
+            <.icon name="hero-funnel" class="w-4 h-4" />
+            <span>All Categories</span>
+          </:trigger>
+          <:content class="p-2 min-w-[220px]">
+            <div class="flex justify-between items-center px-2 py-1 mb-1">
+              <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                Categories
+              </span>
+            </div>
+            <div class="text-sm text-gray-600 px-2 py-3">Categories will be listed here</div>
+          </:content>
+        </.dropdown>
+
+        <div class="flex items-center gap-4 text-sm">
+          <span class="text-gray-500">
+            Monthly <strong class="text-gray-900">$0</strong>
+          </span>
+          <span class="text-gray-300">·</span>
+          <span class="text-gray-500">
+            Yearly <strong class="text-gray-900">$0</strong>
+          </span>
+        </div>
+      </div>
+
       <div class="p-2">
         <div class="border border-gray-200 rounded-xl overflow-hidden bg-gray-200" style="gap: 1px;">
           <div class="grid grid-cols-[repeat(auto-fill,minmax(70px,1fr))] gap-px bg-gray-200">
