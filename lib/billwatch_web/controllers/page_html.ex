@@ -18,7 +18,7 @@ defmodule BillwatchWeb.PageHTML do
 
   def landing_page_background(assigns) do
     ~H"""
-    <div class={["min-h-screen bg-gradient-to-br from-[#667eea] via-[#764ba2] to-[#f97316] relative", @class]}>
+    <div class={["min-h-screen bg-linear-to-br from-[#667eea] via-[#764ba2] to-[#f97316] relative", @class]}>
       <!-- Pattern overlay -->
       <div
         class="absolute inset-0 opacity-5 pointer-events-none"

@@ -79,7 +79,7 @@ defmodule Billwatch.AccountsTest do
 
     test "registers users with password" do
       email = unique_user_email()
-      {:ok, user} = Accounts.register_user(valid_user_attributes(email: email))
+      {:ok, %{user: user}} = Accounts.register_user(valid_user_attributes(email: email))
       assert user.email == email
       assert user.hashed_password != nil
       assert is_nil(user.confirmed_at)

@@ -37,55 +37,67 @@ defmodule BillwatchWeb.CoreComponents do
   """
   attr :flash, :map, required: true
   attr :autohide, :boolean, default: false
-  attr :inline, :boolean, default: false
+  attr :embedded, :boolean, default: false
 
   def flash_messages(assigns) do
     ~H"""
     <div class={
-      if @inline do
+      if @embedded do
         nil
       else
         "fixed top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-6 pointer-events-none"
       end
     }>
-      <%= if @flash["info"] do %>
-        <div
-          id="flash-info"
-          class={[
-            "mb-3 p-4 bg-green-50 rounded-xl transition-all duration-300 ease-out",
-            !@inline && "shadow-2xl animate-[slideDown_0.3s_ease-out] pointer-events-auto"
-          ]}
-          phx-mounted={
-            if @autohide do
-              JS.dispatch("phx:auto-hide", detail: %{id: "flash-info", delay: 3000})
-            end
-          }
-        >
-          <div class="flex items-start">
-            <.icon name="hero-check-circle" class="w-5 h-5 text-green-600 mr-3 mt-0.5 flex-shrink-0" />
-            <p class="text-sm text-green-900 font-medium">{@flash["info"]}</p>
-          </div>
-        </div>
+      <%= for {type, message} <- @flash do %>
+        <.flash_message autohide={@autohide} embedded={@embedded} variant={type}>
+          {message}
+        </.flash_message>
       <% end %>
-      <%= if @flash["error"] do %>
-        <div
-          id="flash-error"
-          class={[
-            "mb-3 p-4 bg-red-50 rounded-xl transition-all duration-300 ease-out",
-            !@inline && "shadow-2xl animate-[slideDown_0.3s_ease-out] pointer-events-auto"
-          ]}
-          phx-mounted={
-            if @autohide do
-              JS.dispatch("phx:auto-hide", detail: %{id: "flash-error", delay: 3000})
-            end
-          }
-        >
-          <div class="flex items-start">
-            <.icon name="hero-exclamation-circle" class="w-5 h-5 text-red-600 mr-3 mt-0.5 flex-shrink-0" />
-            <p class="text-sm text-red-900 font-medium">{@flash["error"]}</p>
-          </div>
-        </div>
-      <% end %>
+    </div>
+    """
+  end
+
+  attr :autohide, :boolean, default: false
+  attr :embedded, :boolean, default: false
+  attr :variant, :string, required: true
+  slot :inner_block, required: true
+
+  def flash_message(assigns) do
+    classes = [
+      "flash",
+      !assigns.embedded && "flash-toast",
+      case assigns.variant do
+        "error" -> "flash-error"
+        "info" -> "flash-info"
+      end
+    ]
+
+    icon =
+      case assigns.variant do
+        "error" -> "hero-exclamation-circle"
+        "info" -> "hero-check-circle"
+      end
+
+    assigns =
+      assigns
+      |> assign(:id, "flash-#{assigns.variant}")
+      |> assign(:classes, classes)
+      |> assign(:icon, icon)
+
+    ~H"""
+    <div
+      id={@id}
+      class={@classes}
+      phx-mounted={
+        if @autohide do
+          JS.dispatch("phx:auto-hide", detail: %{id: @id, delay: 3000})
+        end
+      }
+    >
+      <div class="flash-message">
+        <.icon name={@icon} />
+        <p>{render_slot(@inner_block)}</p>
+      </div>
     </div>
     """
   end
@@ -198,7 +210,6 @@ defmodule BillwatchWeb.CoreComponents do
   end
 
   def dropdown(assigns) do
-    # Use case for literal class names (tree-shaking)
     position_class =
       case assigns.position do
         "left" -> "dropdown-left"

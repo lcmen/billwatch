@@ -23,5 +23,6 @@ defmodule Billwatch.Bills.Category do
     |> validate_length(:name, min: 1, max: 100)
     |> validate_format(:color, ~r/^#[0-9A-Fa-f]{6}$/, message: "must be a valid hex color (e.g., #FF5733)")
     |> foreign_key_constraint(:account_id)
+    |> unique_constraint([:account_id, :name], name: :categories_account_id_name_index)
   end
 end

@@ -19,7 +19,7 @@ defmodule Billwatch.UsersFixtures do
   end
 
   def unconfirmed_user_fixture(attrs \\ %{}) do
-    {:ok, user} =
+    {:ok, %{user: user}} =
       attrs
       |> valid_user_attributes()
       |> Accounts.register_user()

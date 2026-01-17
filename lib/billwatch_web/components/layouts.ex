@@ -42,23 +42,6 @@ defmodule BillwatchWeb.Layouts do
   end
 
   @doc """
-  Shows flash messages with auto-hide support.
-
-  ## Examples
-
-      <.flash_group flash={@flash} />
-      <.flash_group flash={@flash} autohide={true} />
-  """
-  attr :flash, :map, required: true, doc: "the map of flash messages"
-  attr :autohide, :boolean, default: false, doc: "whether to auto-hide flash messages"
-
-  def flash_group(assigns) do
-    ~H"""
-    <.flash_messages flash={@flash} autohide={@autohide} />
-    """
-  end
-
-  @doc """
   Renders the app layout with header navigation and filter bar.
 
   ## Examples
@@ -100,27 +83,14 @@ defmodule BillwatchWeb.Layouts do
                   <.icon name="hero-cog-6-tooth" class="w-5 h-5 my-0.5 text-gray-600" />
                 </:trigger>
                 <:content>
-                  <.button
-                    navigate={~p"/settings"}
-                    variant="transparent"
-                    class="w-full text-left justify-start"
-                  >
+                  <.button navigate={~p"/settings"} variant="transparent">
                     <.icon name="hero-cog-6-tooth" class="w-4 h-4" /> Settings
                   </.button>
-                  <.button
-                    navigate="/"
-                    variant="transparent"
-                    class="w-full text-left justify-start"
-                  >
+                  <.button navigate="/" variant="transparent">
                     <.icon name="hero-question-mark-circle" class="w-4 h-4" /> Help & Support
                   </.button>
                   <div class="h-px bg-gray-200 my-1"></div>
-                  <.button
-                    href={~p"/signout"}
-                    method="delete"
-                    variant="transparent"
-                    class="w-full text-left justify-start text-red-600 hover:bg-red-50"
-                  >
+                  <.button href={~p"/signout"} method="delete" variant="transparent" class="text-red-600 hover:bg-red-50">
                     <.icon name="hero-arrow-right-on-rectangle" class="w-4 h-4" /> Log out
                   </.button>
                 </:content>
@@ -129,9 +99,8 @@ defmodule BillwatchWeb.Layouts do
           </div>
         </div>
       </header>
-      
-    <!-- Flash Messages -->
-      <.flash_group flash={@flash} autohide={true} />
+
+      <.flash_messages flash={@flash} autohide={true} />
       
     <!-- Main Content -->
       <main>

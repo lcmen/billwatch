@@ -13,7 +13,7 @@
       </div>
       
 <!-- Flash Messages -->
-      <.flash_messages flash={@flash} autohide={false} inline={true} />
+      <.flash_messages flash={@flash} autohide={false} embedded={true} />
 
       <.form :let={f} for={@changeset} action={~p"/signup"}>
         <.input

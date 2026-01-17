@@ -22,8 +22,13 @@ defmodule Billwatch.Accounts do
       nil
 
   """
-  def get_user_by_email(email) when is_binary(email) do
-    Repo.get_by(User, email: email)
+  def get_user_by_email(email, opts \\ []) when is_binary(email) do
+    preload = Keyword.get(opts, :preload, [])
+
+    case Repo.get_by(User, email: email) do
+      nil -> nil
+      user -> Repo.preload(user, preload)
+    end
   end
 
   @doc """
@@ -65,13 +70,13 @@ defmodule Billwatch.Accounts do
   @doc """
   Registers a user with a default account.
 
-  Creates a user, a default account with the name "My Account", and links them
+  Creates a user, a default account with the name "My Bills", and links them
   together with an admin role. All operations are performed in a transaction.
 
   ## Examples
 
       iex> register_user(%{field: value})
-      {:ok, %User{}}
+      {:ok, %{user: %User{}, account: %Account{}}}
 
       iex> register_user(%{field: bad_value})
       {:error, %Ecto.Changeset{}}
@@ -86,7 +91,7 @@ defmodule Billwatch.Accounts do
     end)
     |> Repo.transaction()
     |> case do
-      {:ok, %{user: user}} -> {:ok, user}
+      {:ok, %{user: user, account: account}} -> {:ok, %{user: user, account: account}}
       {:error, _failed_operation, changeset, _changes_so_far} -> {:error, changeset}
     end
   end
