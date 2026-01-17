@@ -50,15 +50,17 @@ defmodule BillwatchWeb.Router do
   scope "/", BillwatchWeb do
     pipe_through [:browser, :redirect_if_user_is_authenticated]
 
-    get "/signup", SignupController, :new
-    post "/signup", SignupController, :create
-  end
-
-  scope "/", BillwatchWeb do
-    pipe_through [:browser]
-
     get "/signin", SigninController, :new
     post "/signin", SigninController, :create
+    get "/signup", SignupController, :new
+    post "/signup", SignupController, :create
+
+    get "/password/reset", PasswordController, :new
+    get "/password/reset/:token", PasswordController, :edit
+    post "/password/reset", PasswordController, :create
+    put "/password/reset/:token", PasswordController, :update
+
+    get "/users/confirm/:token", Signup.ConfirmationController, :confirm
   end
 
   scope "/", BillwatchWeb do
@@ -72,7 +74,5 @@ defmodule BillwatchWeb.Router do
 
   scope "/", BillwatchWeb do
     pipe_through [:browser]
-
-    get "/users/confirm/:token", Signup.ConfirmationController, :confirm
   end
 end

@@ -44,7 +44,7 @@ defmodule Billwatch.UsersFixtures do
   end
 
   def with_confirmation_token(user, token) do
-    {encoded_token, user_token} = Accounts.UserToken.build_email_token(user, "confirm", token)
+    {encoded_token, user_token} = Accounts.UserToken.build_user_confirm_token(user, token)
     Billwatch.Repo.insert!(user_token)
     {user, encoded_token}
   end

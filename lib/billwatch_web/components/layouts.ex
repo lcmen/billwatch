@@ -109,4 +109,44 @@ defmodule BillwatchWeb.Layouts do
     </div>
     """
   end
+
+  @doc """
+  Renders a centered modal dialog with backdrop, title, and content.
+
+  ## Examples
+
+      <.modal title="Log in" flash={@flash}>
+        <.form for={@form}>
+          <!-- form fields here -->
+        </.form>
+      </.modal>
+
+  """
+  attr :title, :string, required: true, doc: "the modal title"
+  attr :flash, :map, required: true, doc: "the map of flash messages"
+  attr :close_path, :string, default: "/", doc: "path to navigate to when closing the modal"
+  slot :inner_block, required: true
+
+  def modal(assigns) do
+    ~H"""
+    <!-- Modal overlay backdrop -->
+    <div class="fixed inset-0 bg-black/40 z-40"></div>
+
+    <!-- Modal Card -->
+    <div class="fixed inset-0 z-50 flex items-center justify-center px-4 py-12">
+      <div class="w-full max-w-[360px] p-8 bg-white rounded-2xl shadow-[0_25px_50px_rgba(0,0,0,0.25)]">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-semibold text-gray-900">{@title}</h2>
+          <.button navigate={@close_path} variant="secondary" size="sm">
+            ✕
+          </.button>
+        </div>
+
+        <.flash_messages flash={@flash} autohide={false} embedded={true} />
+
+        {render_slot(@inner_block)}
+      </div>
+    </div>
+    """
+  end
 end

@@ -1,0 +1,35 @@
+<.landing_page>
+  <BillwatchWeb.Layouts.modal title="Create new password" flash={@flash}>
+    <.form :let={f} for={@form} action={~p"/password/reset/#{@token}"} method="put">
+      <.input
+        field={f[:password]}
+        type="password"
+        label="New password"
+        placeholder="New password"
+        autocomplete="new-password"
+        required
+      />
+
+      <.input
+        field={f[:password_confirmation]}
+        type="password"
+        label="Confirm new password"
+        placeholder="Confirm new password"
+        autocomplete="new-password"
+        required
+      />
+
+      <p class="text-xs text-gray-500 mb-4 -mt-2">
+        Password must be at least 10 characters with uppercase, lowercase, and a digit or special character.
+      </p>
+
+      <.button
+        type="submit"
+        variant="primary"
+        class="w-full px-3.5 py-3"
+      >
+        Reset password
+      </.button>
+    </.form>
+  </BillwatchWeb.Layouts.modal>
+</.landing_page>

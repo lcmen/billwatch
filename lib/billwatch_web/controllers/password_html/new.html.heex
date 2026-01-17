@@ -1,0 +1,29 @@
+<.landing_page>
+  <BillwatchWeb.Layouts.modal title="Reset password" flash={@flash}>
+    <.form :let={f} for={@form} action={~p"/password/reset"}>
+      <.input
+        field={f[:email]}
+        type="email"
+        label="Email"
+        placeholder="Email"
+        autocomplete="email"
+        required
+      />
+
+      <.button
+        type="submit"
+        variant="primary"
+        class="w-full px-3.5 py-3"
+      >
+        Send reset instructions
+      </.button>
+    </.form>
+
+    <p class="text-center mt-5 text-sm text-gray-600">
+      Remember your password?
+      <.link navigate={~p"/signin"} class="text-orange-500 hover:underline font-medium ml-1">
+        Log in
+      </.link>
+    </p>
+  </BillwatchWeb.Layouts.modal>
+</.landing_page>

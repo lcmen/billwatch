@@ -234,4 +234,130 @@ defmodule Billwatch.AccountsTest do
       refute inspect(%User{password: "123456"}) =~ "password: \"123456\""
     end
   end
+
+  describe "deliver_password_reset_instructions/2" do
+    setup do
+      %{user: user_fixture()}
+    end
+
+    test "sends token through notification", %{user: user} do
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_password_reset_instructions(user, url)
+        end)
+
+      {:ok, token} = Base.url_decode64(token, padding: false)
+      assert user_token = Repo.get_by(UserToken, token: :crypto.hash(:sha256, token))
+      assert user_token.user_id == user.id
+      assert user_token.sent_to == user.email
+      assert user_token.context == "reset"
+    end
+  end
+
+  describe "get_user_by_reset_password_token/1" do
+    setup do
+      user = user_fixture()
+
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_password_reset_instructions(user, url)
+        end)
+
+      %{user: user, token: token}
+    end
+
+    test "returns the user with valid token", %{user: %{id: id}, token: token} do
+      assert %User{id: ^id} = Accounts.get_user_by_reset_password_token(token)
+    end
+
+    test "does not return the user with invalid token", %{user: _user} do
+      refute Accounts.get_user_by_reset_password_token("oops!")
+    end
+
+    test "does not return the user if token sent_to email is different", %{user: user} do
+      {token, user_token} = UserToken.build_password_reset_token(user)
+      user_token = %{user_token | sent_to: "different@example.com"}
+      Repo.insert!(user_token)
+
+      refute Accounts.get_user_by_reset_password_token(token)
+    end
+
+    test "does not return the user if token is from different context", %{user: user} do
+      {token, user_token} = UserToken.build_password_reset_token(user)
+      user_token = %{user_token | context: "confirm"}
+      Repo.insert!(user_token)
+
+      refute Accounts.get_user_by_reset_password_token(token)
+    end
+  end
+
+  describe "reset_user_password/2" do
+    setup do
+      %{user: user_fixture()}
+    end
+
+    test "validates password", %{user: user} do
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_password_reset_instructions(user, url)
+        end)
+
+      {:error, changeset} =
+        Accounts.reset_user_password(
+          token,
+          %{password: "not valid", password_confirmation: "another"}
+        )
+
+      assert %{
+               password: [
+                 "at least one digit or punctuation character",
+                 "at least one upper case character",
+                 "should be at least 10 character(s)"
+               ],
+               password_confirmation: ["does not match password"]
+             } = errors_on(changeset)
+    end
+
+    test "validates maximum values for password for security", %{user: user} do
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_password_reset_instructions(user, url)
+        end)
+
+      too_long = String.duplicate("db", 100)
+      {:error, changeset} = Accounts.reset_user_password(token, %{password: too_long})
+      assert "should be at most 72 character(s)" in errors_on(changeset).password
+    end
+
+    test "updates the password and deletes all tokens for the given user", %{user: user} do
+      _ = Accounts.generate_user_session_token(user)
+
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_password_reset_instructions(user, url)
+        end)
+
+      {:ok, updated_user} =
+        Accounts.reset_user_password(token, %{
+          password: "N3wV@lidPassw0rd",
+          password_confirmation: "N3wV@lidPassw0rd"
+        })
+
+      assert is_nil(updated_user.password)
+      assert Accounts.get_user_by_email_and_password(user.email, "N3wV@lidPassw0rd")
+      refute Accounts.get_user_by_email_and_password(user.email, valid_user_password())
+
+      assert :error ==
+               Accounts.reset_user_password(token, %{
+                 password: "N3wV@lidPassw0rd",
+                 password_confirmation: "N3wV@lidPassw0rd"
+               })
+
+      refute Repo.get_by(UserToken, user_id: user.id)
+    end
+
+    test "returns error with invalid token", %{user: _user} do
+      assert Accounts.reset_user_password("invalid", %{password: "N3wV@lidPassw0rd"}) == :error
+    end
+  end
 end

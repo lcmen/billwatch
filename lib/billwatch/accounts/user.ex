@@ -106,13 +106,18 @@ defmodule Billwatch.Accounts.User do
   end
 
   defp validate_current_password(changeset, opts) do
-    current_password = get_change(changeset, :current_password)
-    changeset = validate_required(changeset, [:current_password])
-
-    if Keyword.get(opts, :validate_current_password, false) && not valid_password?(changeset.data, current_password) do
-      add_error(changeset, :current_password, "is not valid")
-    else
+    # Skip validation entirely for password reset
+    if Keyword.get(opts, :skip_current_password, false) do
       changeset
+    else
+      current_password = get_change(changeset, :current_password)
+      changeset = validate_required(changeset, [:current_password])
+
+      if Keyword.get(opts, :validate_current_password, false) && not valid_password?(changeset.data, current_password) do
+        add_error(changeset, :current_password, "is not valid")
+      else
+        changeset
+      end
     end
   end
 

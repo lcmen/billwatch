@@ -198,7 +198,7 @@ defmodule Billwatch.Accounts do
     if user.confirmed_at do
       {:error, :already_confirmed}
     else
-      {encoded_token, user_token} = UserToken.build_email_token(user, "confirm")
+      {encoded_token, user_token} = UserToken.build_user_confirm_token(user)
       Repo.insert!(user_token)
       UserNotifier.deliver_confirmation_instructions(user, confirmation_url_fun.(encoded_token))
     end
@@ -227,24 +227,75 @@ defmodule Billwatch.Accounts do
     |> Repo.transaction()
   end
 
-  @doc ~S"""
-  Delivers the update email instructions to the given user.
+  ## Password reset
+
+  @doc """
+  Delivers the password reset email instructions to the given user.
 
   ## Examples
 
-      iex> deliver_user_update_email_instructions(user, current_email, &url(~p"/users/settings/confirm-email/#{&1}"))
+      iex> deliver_password_reset_instructions(user, &url(~p"/password/reset/\#{&1}"))
       {:ok, %{to: ..., body: ...}}
 
   """
-  def deliver_user_update_email_instructions(%User{} = user, current_email, update_email_url_fun)
-      when is_function(update_email_url_fun, 1) do
-    {encoded_token, user_token} = UserToken.build_email_token(user, "change:#{current_email}")
-
+  def deliver_password_reset_instructions(%User{} = user, reset_url_fun)
+      when is_function(reset_url_fun, 1) do
+    {encoded_token, user_token} = UserToken.build_password_reset_token(user)
     Repo.insert!(user_token)
-    UserNotifier.deliver_update_email_instructions(user, update_email_url_fun.(encoded_token))
+    UserNotifier.deliver_password_reset_instructions(user, reset_url_fun.(encoded_token))
   end
 
-  ## Token helper
+  @doc """
+  Gets the user by password reset token.
+
+  ## Examples
+
+      iex> get_user_by_reset_password_token(token)
+      %User{}
+
+      iex> get_user_by_reset_password_token("invalid")
+      nil
+
+  """
+  def get_user_by_reset_password_token(token) do
+    with {:ok, query} <- UserToken.verify_password_reset_token_query(token),
+         %User{} = user <- Repo.one(query) do
+      user
+    else
+      _ -> nil
+    end
+  end
+
+  @doc """
+  Resets the user password.
+
+  ## Examples
+
+      iex> reset_user_password(token, %{password: ...})
+      {:ok, %User{}}
+
+      iex> reset_user_password(token, %{password: "too short"})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def reset_user_password(token, attrs) do
+    with {:ok, query} <- UserToken.verify_password_reset_token_query(token),
+         %User{} = user <- Repo.one(query),
+         {:ok, %{user: user}} <- reset_user_password_multi(user, attrs) do
+      {:ok, user}
+    else
+      :error -> :error
+      {:error, :user, changeset, _} -> {:error, changeset}
+      _ -> :error
+    end
+  end
+
+  defp reset_user_password_multi(user, attrs) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.update(:user, User.password_changeset(user, attrs, skip_current_password: true))
+    |> Ecto.Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, :all))
+    |> Repo.transaction()
+  end
 
   defp update_user_and_delete_all_tokens(changeset) do
     Repo.transact(fn ->

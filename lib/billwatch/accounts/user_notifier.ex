@@ -56,4 +56,24 @@ defmodule Billwatch.Accounts.UserNotifier do
     ==============================
     """)
   end
+
+  @doc """
+  Deliver instructions to reset a user password.
+  """
+  def deliver_password_reset_instructions(user, url) do
+    deliver(user.email, "Reset your password", """
+
+    ==============================
+
+    Hi #{user.email},
+
+    You requested a password reset. You can reset your password by visiting the URL below:
+
+    #{url}
+
+    If you didn't request this change, please ignore this email.
+
+    ==============================
+    """)
+  end
 end
